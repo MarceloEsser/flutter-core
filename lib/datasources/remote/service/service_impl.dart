@@ -31,10 +31,11 @@ class ServiceImpl extends Service {
       ),
     );
 
-    var response = jsonDecode(result.body.toString());
+    Map<String, dynamic> response = jsonDecode(result.body.toString());
+    final isError = response.containsKey("http_error");
     return ResponseWrapper(
       status: result.statusCode,
-      data: map?.call(response),
+      data: !isError ? map?.call(response) : null,
       message: result.reasonPhrase,
     );
   }

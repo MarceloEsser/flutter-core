@@ -4,15 +4,18 @@ import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_core/datasources/local/sharedpreferences/shared_cache.dart';
 import 'package:flutter_core/datasources/remote/client/request/multipart_request.dart';
 import 'package:flutter_core/datasources/remote/client/request/request.dart';
 import 'package:flutter_core/datasources/remote/client/request/request_verb.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/retry.dart';
 import 'package:logging/logging.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HttpClient {
-  final String _baseUrl = "'";
+  final String _baseUrl = "api.nasa.gov/neo/rest/v1";
   final log = Logger('HttpClient');
   final _inner = http.Client();
 
@@ -29,15 +32,19 @@ class HttpClient {
     required T Function() request,
   }) async {
     try {
+      if (await SharedCache.getApiKey() == null) {
+        await SharedCache.setApiKey(await _getApiKey());
+      }
+
+      final apiKey = await SharedCache.getApiKey();
+
       T req = request();
       var uri = Uri.parse('https://$_baseUrl${req.path}');
       if (req.path.contains('https://')) uri = Uri.parse(req.path);
 
       await _addHeaders(req);
 
-      if (req.queryParameters != null) {
-        uri = uri.replace(queryParameters: req.queryParameters);
-      }
+      uri = _addQueryParameters(req, apiKey, uri);
 
       debug('Sending @${req.verb.name.toUpperCase()}: $uri');
       debug('Header: ${req.headers}');
@@ -71,6 +78,19 @@ class HttpClient {
       debug('Result: $e');
       rethrow;
     }
+  }
+
+  Uri _addQueryParameters(req, String? apiKey, Uri uri) {
+    req.queryParameters ??= {};
+    req.queryParameters?.putIfAbsent('api_key', () => apiKey ?? 'DEMO_KEY');
+    uri = uri.replace(queryParameters: req.queryParameters);
+    return uri;
+  }
+
+  Future<String> _getApiKey() async {
+    final String response = await rootBundle.loadString('assets/key.json');
+    final data = await json.decode(response);
+    return data["self"];
   }
 
   Future<http.StreamedResponse> _sendMultipartRequest(
@@ -176,17 +196,19 @@ class HttpClient {
 }
 
 void debug(
-    String? message, {
-      Object? error,
-      StackTrace? stackTrace,
-      Level level = Level.ALL,
-    }) {
+  String? message, {
+  Object? error,
+  StackTrace? stackTrace,
+  Level level = Level.ALL,
+}) {
   if (kDebugMode) {
-    developer.log(message ?? 'message: NULL', error: error, stackTrace: stackTrace);
+    developer.log(message ?? 'message: NULL',
+        error: error, stackTrace: stackTrace);
   }
 }
 
 extension BaseResponseStatusExtension on http.BaseResponse {
   bool unauthorized() => statusCode == HttpStatus.unauthorized;
+
   bool internalServerError() => statusCode == HttpStatus.internalServerError;
 }
