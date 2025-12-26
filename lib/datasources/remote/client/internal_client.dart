@@ -11,10 +11,12 @@ import 'package:http/http.dart' as http;
 import 'package:http/retry.dart';
 import 'package:logging/logging.dart';
 
-class HttpClient {
-  final String _baseUrl = "'";
+final class InternalClient {
+  final String _baseUrl;
   final log = Logger('HttpClient');
   final _inner = http.Client();
+
+  InternalClient(this._baseUrl);
 
   http.Client get _client => RetryClient(
         _inner,
@@ -120,10 +122,12 @@ class HttpClient {
   }
 
   FutureOr<bool> _retryWhen(http.BaseResponse response) {
+    //TODO: Implement the logic to handle to token refresh when unauthorized
     return response.unauthorized() || response.internalServerError();
   }
 
   FutureOr<bool> _retryWhenError(Object error, StackTrace stackTrace) {
+    //TODO: implement better error handling
     debug('_retryWhenError', error: error, stackTrace: stackTrace);
     return true;
   }
@@ -176,13 +180,14 @@ class HttpClient {
 }
 
 void debug(
-    String? message, {
-      Object? error,
-      StackTrace? stackTrace,
-      Level level = Level.ALL,
-    }) {
+  String? message, {
+  Object? error,
+  StackTrace? stackTrace,
+  Level level = Level.ALL,
+}) {
   if (kDebugMode) {
-    developer.log(message ?? 'message: NULL', error: error, stackTrace: stackTrace);
+    developer.log(message ?? 'message: NULL',
+        error: error, stackTrace: stackTrace);
   }
 }
 

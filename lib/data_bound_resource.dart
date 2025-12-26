@@ -1,22 +1,22 @@
 import 'package:flutter_core/data_dispatcher.dart';
 import 'package:flutter_core/datasources/local/local_resource_strategy.dart';
 import 'package:flutter_core/datasources/remote/remote_resource_trategy.dart';
-import 'package:flutter_core/datasources/remote/response/response_wrapper.dart';
+import 'package:flutter_core/datasources/remote/response/reponse.dart';
 import 'package:flutter_core/resource.dart';
 
 class DataSourceMediator<Result, Entity, Network> {
-  final RemoteDataSource<Result, ResponseWrapper<Network>>? _remoteDataSource;
+  final RemoteDataSource<Result, Response<Network>>? _remoteDataSource;
 
   final LocalDatasource<Result, Entity>? _localDataSource;
 
-  final Future Function(ResponseWrapper<Network>)? _saveCallResult;
+  final Future Function(Response<Network>)? _saveCallResult;
 
   late final DataDispatcher<Result> _dispatcher;
 
   DataSourceMediator({
-    RemoteDataSource<Result, ResponseWrapper<Network>>? remoteSource,
+    RemoteDataSource<Result, Response<Network>>? remoteSource,
     LocalDatasource<Result, Entity>? localSource,
-    Future<dynamic> Function(ResponseWrapper<Network>)? saveCallResult,
+    Future<dynamic> Function(Response<Network>)? saveCallResult,
   })  : _saveCallResult = saveCallResult,
         _localDataSource = localSource,
         _remoteDataSource = remoteSource,

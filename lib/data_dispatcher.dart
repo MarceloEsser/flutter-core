@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:isolate';
 
-import 'package:flutter_core/datasources/remote/client/http_client.dart';
+import 'package:flutter_core/datasources/remote/client/internal_client.dart';
 import 'package:flutter_core/resource.dart';
 
 enum DataSource { database, network }

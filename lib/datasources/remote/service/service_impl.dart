@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter_core/datasources/remote/client/http_client.dart';
-import 'package:flutter_core/datasources/remote/response/response_wrapper.dart';
+import 'package:flutter_core/datasources/remote/client/internal_client.dart';
+import 'package:flutter_core/datasources/remote/response/reponse.dart';
 import 'package:flutter_core/datasources/remote/service/service.dart';
 import 'package:http/http.dart' as http;
 
@@ -11,12 +11,12 @@ import '../client/request/request.dart';
 import '../client/request/request_verb.dart';
 
 class ServiceImpl extends Service {
-  final HttpClient _client;
+  final InternalClient _client;
 
-  ServiceImpl() : _client = HttpClient();
+  ServiceImpl() : _client = InternalClient("your_base_url_here");
 
   @override
-  Future<ResponseWrapper<T>> get<T>(
+  Future<Response<T>> get<T>(
     String path, {
     Map<String, String?>? query,
     Map<String, String>? headers,
@@ -32,15 +32,15 @@ class ServiceImpl extends Service {
     );
 
     var response = jsonDecode(result.body.toString());
-    return ResponseWrapper(
+    return Response(
       status: result.statusCode,
-      data: map?.call(response),
+      metadata: map?.call(response),
       message: result.reasonPhrase,
     );
   }
 
   @override
-  Future<ResponseWrapper<T>> post<T>(
+  Future<Response<T>> post<T>(
     String path, {
     Map<String, String>? query,
     dynamic body,
@@ -59,9 +59,9 @@ class ServiceImpl extends Service {
     );
 
     var response = jsonDecode(result.body.toString());
-    return ResponseWrapper(
+    return Response(
       status: result.statusCode,
-      data: map?.call(response),
+      metadata: map?.call(response),
       message: result.reasonPhrase,
     );
   }

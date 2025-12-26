@@ -5,7 +5,7 @@ import 'package:flutter_core/data_bound_resource.dart';
 import 'package:flutter_core/datasources/local/database/dao/data_access_object_impl.dart';
 import 'package:flutter_core/datasources/local/local_resource_strategy.dart';
 import 'package:flutter_core/datasources/remote/remote_resource_trategy.dart';
-import 'package:flutter_core/datasources/remote/response/response_wrapper.dart';
+import 'package:flutter_core/datasources/remote/response/reponse.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -58,12 +58,12 @@ void main() {
         final mediator = DataSourceMediator(
           remoteSource: RemoteDataSource.build(
             fetch: () async {
-              return ResponseWrapper(
+              return Response(
                 status: HttpStatus.ok,
-                data: dummyNetworkList,
+                metadata: dummyNetworkList,
               );
             },
-            mapper: (raw) => raw.data?.map((e) => e.toModel()).toList(),
+            mapper: (raw) => raw.metadata?.map((e) => e.toModel()).toList(),
           ),
         ).factory();
 

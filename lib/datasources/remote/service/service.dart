@@ -1,15 +1,14 @@
-import 'package:flutter_core/datasources/remote/response/response_wrapper.dart';
+import 'package:flutter_core/datasources/remote/response/reponse.dart';
 import 'package:http/http.dart' as http;
 
-
 abstract class Service {
-  Future<ResponseWrapper<T>> get<T>(
+  Future<Response<T>> get<T>(
     String path, {
     Map<String, String?>? query,
     Map<String, String>? headers,
   });
 
-  Future<ResponseWrapper<T>> post<T>(
+  Future<Response<T>> post<T>(
     String path, {
     Map<String, String>? query,
     dynamic body,
