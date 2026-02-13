@@ -7,6 +7,9 @@ class Request {
   Map<String, String>? headers;
   final bool shouldAuthorize;
   final dynamic body;
+  final dynamic Function(dynamic)? mapper;
+  final bool isFormData;
+  final bool isAnonymous;
 
   Request({
     required this.path,
@@ -15,6 +18,9 @@ class Request {
     this.shouldAuthorize = true,
     this.queryParameters,
     this.body,
+    this.mapper,
+    this.isFormData = false,
+    this.isAnonymous = false,
   });
 
   factory Request.get(
@@ -22,6 +28,8 @@ class Request {
     Map<String, String?>? queryParameters,
     Map<String, String>? headers,
     bool shouldAuthorize = true,
+    dynamic Function(dynamic)? mapper,
+    bool isAnonymous = false,
   }) {
     return Request(
       path: path,
@@ -29,6 +37,8 @@ class Request {
       queryParameters: queryParameters,
       headers: headers,
       shouldAuthorize: shouldAuthorize,
+      mapper: mapper,
+      isAnonymous: isAnonymous,
     );
   }
 
@@ -38,6 +48,9 @@ class Request {
     Map<String, String?>? queryParameters,
     Map<String, String>? headers,
     bool shouldAuthorize = true,
+    dynamic Function(dynamic)? mapper,
+    bool isFormData = false,
+    bool isAnonymous = false,
   }) {
     return Request(
       path: path,
@@ -46,6 +59,9 @@ class Request {
       queryParameters: queryParameters,
       headers: headers,
       shouldAuthorize: shouldAuthorize,
+      mapper: mapper,
+      isFormData: isFormData,
+      isAnonymous: isAnonymous,
     );
   }
 
@@ -55,6 +71,9 @@ class Request {
     Map<String, String?>? queryParameters,
     Map<String, String>? headers,
     bool shouldAuthorize = true,
+    dynamic Function(dynamic)? mapper,
+    bool isFormData = false,
+    bool isAnonymous = false,
   }) {
     return Request(
       path: path,
@@ -63,6 +82,9 @@ class Request {
       queryParameters: queryParameters,
       headers: headers,
       shouldAuthorize: shouldAuthorize,
+      mapper: mapper,
+      isFormData: isFormData,
+      isAnonymous: isAnonymous,
     );
   }
 
@@ -71,6 +93,8 @@ class Request {
     Map<String, String?>? queryParameters,
     Map<String, String>? headers,
     bool shouldAuthorize = true,
+    dynamic Function(dynamic)? mapper,
+    bool isAnonymous = false,
   }) {
     return Request(
       path: path,
@@ -78,6 +102,8 @@ class Request {
       queryParameters: queryParameters,
       headers: headers,
       shouldAuthorize: shouldAuthorize,
+      mapper: mapper,
+      isAnonymous: isAnonymous,
     );
   }
 }
