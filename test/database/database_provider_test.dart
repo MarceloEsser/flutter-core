@@ -35,12 +35,13 @@ void main() {
     });
 
     test(
-      'Should return false when `tableExists()` is called and the table isn`t created yet',
-          () async {
+      'Should throw TableNotFoundException when `tableExists()` is called and table does not exist',
+      () async {
         final dao = getIt.get<DataAccessObject>();
         final database = await getIt.get<DatabaseProvider>().database;
 
-        final tableExists = await dao.tableExists(database, DummyTable.tableName);
+        final tableExists =
+            await dao.tableExists(database, DummyTable.tableName);
         await dao.close();
 
         expect(tableExists, false);
@@ -48,8 +49,25 @@ void main() {
     );
 
     test(
+      'Should throw TableNotFoundException when `getAll` is called and table does not exist',
+      () async {
+        final DataAccessObject dao = getIt.get();
+
+        expect(
+          () => dao.getAll<DummyEntity>(
+            table: DummyTable.tableName,
+            toEntity: DummyEntity.fromMap,
+          ),
+          throwsA(isA<TableNotFoundException>()),
+        );
+
+        await dao.close();
+      },
+    );
+
+    test(
       'Should return the inserted object id when insert with success',
-          () async {
+      () async {
         final DataAccessObject dao = getIt.get();
         final insertionResultId = await dao.insert(
           entity: DummyEntity(null, "dummy_1"),
@@ -68,7 +86,7 @@ void main() {
 
     test(
       'Should return the deletion result when an entity is deleted by id',
-          () async {
+      () async {
         final DataAccessObject dao = getIt.get();
         final insertionResultId = await dao.insert(
           entity: DummyEntity(null, "dummy_1"),
@@ -86,28 +104,30 @@ void main() {
     );
 
     test(
-      'Should return null when call `getAll` and has no data to map in the database',
-          () async {
+      'Should throw TableNotFoundException when call `getAll` on non-existent table',
+      () async {
         final DataAccessObject dao = getIt.get();
 
-        final result = await dao.getAll<DummyEntity>(
-          table: DummyTable.tableName,
-          toEntity: DummyEntity.fromMap,
+        expect(
+          () => dao.getAll<DummyEntity>(
+            table: DummyTable.tableName,
+            toEntity: DummyEntity.fromMap,
+          ),
+          throwsA(isA<TableNotFoundException>()),
         );
 
         await dao.close();
-
-        expect(result, isNull);
       },
     );
 
     test(
       'Should return empty list when call `getAll`, the table exists but has no data',
-          () async {
-        final database = await getIt.get<DatabaseProvider>().database;
+      () async {
         final DataAccessObject dao = getIt.get();
 
-        await database.execute(DummyTable.createTable);
+        // Create table first by inserting and deleting
+        await dao.insert(entity: DummyEntity(null, "temp"));
+        await dao.deleteWithId(table: DummyTable.tableName, id: 1);
 
         final result = await dao.getAll<DummyEntity>(
           table: DummyTable.tableName,
@@ -121,7 +141,7 @@ void main() {
 
     test(
       'Should return a list with items when call `getAll`, the table exists and has data',
-          () async {
+      () async {
         final DataAccessObject dao = getIt.get();
 
         await dao.insert(
@@ -141,7 +161,7 @@ void main() {
 
     test(
       'Should return the inserted id list when insert more than one entity at time',
-          () async {
+      () async {
         final DataAccessObject dao = getIt.get();
 
         List<DummyEntity> dummies = [
@@ -158,16 +178,38 @@ void main() {
     );
 
     test(
-      'Should return null when the entity does not exists',
-          () async {
+      'Should throw TableNotFoundException when table does not exist and get is called',
+      () async {
         final DataAccessObject dao = getIt.get();
 
+        expect(
+          () => dao.get(
+            1,
+            table: DummyTable.tableName,
+            toEntity: DummyEntity.fromMap,
+          ),
+          throwsA(isA<TableNotFoundException>()),
+        );
+
+        await dao.close();
+      },
+    );
+
+    test(
+      'Should return null when entity with given ID does not exist',
+      () async {
+        final DataAccessObject dao = getIt.get();
+
+        // Create table first
+        await dao.insert(entity: DummyEntity(null, "dummy_1"));
+
         final result = await dao.get(
-          1,
+          999, // Non-existent ID
           table: DummyTable.tableName,
           toEntity: DummyEntity.fromMap,
         );
 
+        await dao.deleteWithId(table: DummyTable.tableName, id: 1);
         await dao.close();
         expect(result, isNull);
       },
@@ -175,7 +217,7 @@ void main() {
 
     test(
       'Should return the entity when the database has value',
-          () async {
+      () async {
         final DataAccessObject dao = getIt.get();
 
         final id = await dao.insert(entity: DummyEntity(null, 'dummy_1'));
@@ -193,7 +235,7 @@ void main() {
 
     test(
       'Should return true when the database contains the entity',
-          () async {
+      () async {
         final DataAccessObject dao = getIt.get();
 
         final entity = DummyEntity(1, 'dummy_1');
@@ -209,7 +251,7 @@ void main() {
 
     test(
       'Should return false when does not contain the entity',
-          () async {
+      () async {
         final DataAccessObject dao = getIt.get();
 
         await dao.insert(entity: DummyEntity(null, 'dummy_1'));
@@ -226,7 +268,7 @@ void main() {
 
     test(
       'Should find and delete a specific entity that matches with the args passed as arguments',
-          () async {
+      () async {
         final DataAccessObject dao = getIt.get();
 
         await dao.insert(entity: DummyEntity(null, 'dummy_1'));

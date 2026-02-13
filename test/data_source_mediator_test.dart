@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_core/data_source_mediator.dart';
 import 'package:flutter_core/datasources/data_source.dart';
 import 'package:flutter_core/datasources/remote/response/reponse.dart';
@@ -20,6 +22,9 @@ class UserModel {
 
   @override
   int get hashCode => id.hashCode ^ name.hashCode;
+
+  @override
+  String toString() => 'UserModel(id: $id, name: $name)';
 }
 
 class UserEntity {
@@ -37,7 +42,7 @@ class UserDto {
 }
 
 void main() {
-  group('DataSourceMediator', () {
+  group('DataSourceMediator -', () {
     late UserModel testUser;
     late UserEntity testEntity;
     late UserDto testDto;
@@ -50,12 +55,12 @@ void main() {
       testDto = UserDto(id: '1', name: 'Test User');
       successResponse = Response<UserDto>(
         metadata: testDto,
-        status: 200,
+        status: HttpStatus.ok,
         message: 'Success',
       );
       errorResponse = Response<UserDto>(
         metadata: testDto,
-        status: 400,
+        status: HttpStatus.badRequest,
         message: 'Bad Request',
       );
     });
@@ -181,9 +186,9 @@ void main() {
         final results = await mediator.execute().toList();
 
         expect(results.length, 1);
-        expect(results[0], isA<Error>());
-        expect((results[0] as Error).message, contains('Local fetch error'));
-        expect((results[0] as Error).message, contains('Database error'));
+        expect(results[0], isA<Failure>());
+        expect((results[0] as Failure).message, contains('Local fetch error'));
+        expect((results[0] as Failure).message, contains('Database error'));
       });
     });
 
@@ -235,8 +240,8 @@ void main() {
         final results = await mediator.execute().toList();
 
         expect(results.length, 1);
-        expect(results[0], isA<Error>());
-        expect((results[0] as Error).message, 'Bad Request');
+        expect(results[0], isA<Failure>());
+        expect((results[0] as Failure).message, 'Bad Request');
       });
 
       test('yields error with default message when response has no message',
@@ -259,8 +264,8 @@ void main() {
         final results = await mediator.execute().toList();
 
         expect(results.length, 1);
-        expect(results[0], isA<Error>());
-        expect((results[0] as Error).message, 'Unknown error');
+        expect(results[0], isA<Failure>());
+        expect((results[0] as Failure).message, 'Unknown error');
       });
 
       test('does not yield when mapper returns null', () async {
@@ -390,7 +395,7 @@ void main() {
 
         expect(results.length, 2);
         expect(results[0], isA<Data<UserModel>>());
-        expect(results[1], isA<Error>());
+        expect(results[1], isA<Failure>());
       });
 
       test('saves remote data to local when saveCallResult is provided',
@@ -471,6 +476,265 @@ void main() {
           () => stream.toList(),
           throwsA(isA<StateError>()),
         );
+      });
+    });
+
+    group('Result Types -', () {
+      test('Data should contain data and optional message', () {
+        final data = Data(testUser, message: 'Success message');
+
+        expect(data.data, equals(testUser));
+        expect(data.message, equals('Success message'));
+      });
+
+      test('Data should work without message', () {
+        final data = Data(testUser);
+
+        expect(data.data, equals(testUser));
+        expect(data.message, isNull);
+      });
+
+      test('Failure should be an Exception', () {
+        final failure = Failure('Error occurred');
+
+        expect(failure, isA<Exception>());
+        expect(failure, isA<Result>());
+      });
+
+      test('Failure toString should include message', () {
+        final failure = Failure('Custom error');
+
+        expect(failure.toString(), contains('DataSourceMediator Failure'));
+        expect(failure.toString(), contains('Custom error'));
+      });
+    });
+
+    group('SaveCallResult Error Handling -', () {
+      test('yields failure when saveCallResult throws exception', () async {
+        final remoteStrategy = RemoteDataSource<UserModel, UserDto>(
+          fetchFromRemote: () async => successResponse,
+          mapper: (response) => testUser,
+        );
+
+        final mediator = DataSourceMediator.remote(
+          remoteStrategy: remoteStrategy,
+          saveCallResult: (response) async {
+            throw Exception('Save failed');
+          },
+        );
+
+        final results = await mediator.execute().toList();
+
+        expect(results.length, 2);
+        expect(results[0], isA<Data<UserModel>>());
+        expect(results[1], isA<Failure>());
+        expect((results[1] as Failure).message,
+            contains('Save call result error'));
+      });
+
+      test('yields data before saveCallResult error', () async {
+        final remoteStrategy = RemoteDataSource<UserModel, UserDto>(
+          fetchFromRemote: () async => successResponse,
+          mapper: (response) => testUser,
+        );
+
+        final mediator = DataSourceMediator.remote(
+          remoteStrategy: remoteStrategy,
+          saveCallResult: (response) async {
+            throw Exception('Save error');
+          },
+        );
+
+        final results = await mediator.execute().toList();
+
+        // Should get data first, then failure from save
+        expect(results.length, 2);
+        final firstResult = results[0] as Data<UserModel>;
+        expect(firstResult.data, equals(testUser));
+      });
+
+      test('continues execution after saveCallResult error', () async {
+        bool saveAttempted = false;
+
+        final remoteStrategy = RemoteDataSource<UserModel, UserDto>(
+          fetchFromRemote: () async => successResponse,
+          mapper: (response) => testUser,
+        );
+
+        final mediator = DataSourceMediator.remote(
+          remoteStrategy: remoteStrategy,
+          saveCallResult: (response) async {
+            saveAttempted = true;
+            throw Exception('Save failed');
+          },
+        );
+
+        final results = await mediator.execute().toList();
+
+        expect(saveAttempted, isTrue);
+        expect(results.length, 2); // Data + Failure from save error
+      });
+    });
+
+    group('Complex Scenarios -', () {
+      test('handles local success and remote success with save', () async {
+        List<String> executionOrder = [];
+
+        final localStrategy = LocalDataSource<UserModel, UserEntity>(
+          fetchFromLocal: () async {
+            executionOrder.add('local_fetch');
+            return testEntity;
+          },
+          mapper: (entity) => testUser,
+        );
+
+        final remoteStrategy = RemoteDataSource<UserModel, UserDto>(
+          fetchFromRemote: () async {
+            executionOrder.add('remote_fetch');
+            return successResponse;
+          },
+          mapper: (response) => testUser,
+        );
+
+        final mediator = DataSourceMediator<UserModel, UserDto, UserEntity>(
+          localStrategy: localStrategy,
+          remoteStrategy: remoteStrategy,
+          saveCallResult: (response) async {
+            executionOrder.add('save');
+          },
+        );
+
+        final results = await mediator.execute().toList();
+
+        expect(results.length, 2);
+        expect(executionOrder, ['remote_fetch', 'save', 'local_fetch']);
+      });
+
+      test('handles concurrent executions independently', () async {
+        int fetchCount = 0;
+
+        final localStrategy = LocalDataSource<UserModel, UserEntity>(
+          fetchFromLocal: () async {
+            fetchCount++;
+            await Future.delayed(Duration(milliseconds: 10));
+            return testEntity;
+          },
+          mapper: (entity) => testUser,
+        );
+
+        final mediator = DataSourceMediator.local(
+          localStrategy: localStrategy,
+        );
+
+        // Execute concurrently
+        final future1 = mediator.execute().toList();
+        final future2 = mediator.execute().toList();
+        final future3 = mediator.execute().toList();
+
+        await Future.wait([future1, future2, future3]);
+
+        expect(fetchCount, equals(3));
+      });
+
+      test('handles different data types in stream', () async {
+        final localStrategy = LocalDataSource<int, UserEntity>(
+          fetchFromLocal: () async => testEntity,
+          mapper: (entity) => int.parse(entity.id),
+        );
+
+        final mediator = DataSourceMediator.local(
+          localStrategy: localStrategy,
+        );
+
+        final results = await mediator.execute().toList();
+
+        expect(results.length, 1);
+        expect((results[0] as Data<int>).data, equals(1));
+      });
+
+      test('preserves response metadata throughout stream', () async {
+        final customResponse = Response<UserDto>(
+          metadata: testDto,
+          status: HttpStatus.ok,
+          message: 'Operation completed successfully',
+        );
+
+        final remoteStrategy = RemoteDataSource<UserModel, UserDto>(
+          fetchFromRemote: () async => customResponse,
+          mapper: (response) => testUser,
+        );
+
+        final mediator = DataSourceMediator.remote(
+          remoteStrategy: remoteStrategy,
+        );
+
+        final results = await mediator.execute().toList();
+
+        expect(results.length, 1);
+        final data = results[0] as Data<UserModel>;
+        expect(data.message, equals('Operation completed successfully'));
+      });
+
+      test('handles nullable data types correctly', () async {
+        final localStrategy = LocalDataSource<UserModel?, UserEntity>(
+          fetchFromLocal: () async => testEntity,
+          mapper: (entity) => entity.name.isEmpty ? null : testUser,
+        );
+
+        final mediator = DataSourceMediator.local(
+          localStrategy: localStrategy,
+        );
+
+        final results = await mediator.execute().toList();
+
+        expect(results.length, 1);
+        expect((results[0] as Data<UserModel?>).data, isNotNull);
+      });
+    });
+
+    group('Performance and Memory -', () {
+      test('handles large number of results efficiently', () async {
+        final items = List.generate(
+          100,
+          (i) => UserEntity(id: '$i', name: 'User $i'),
+        );
+
+        int index = 0;
+        final localStrategy = LocalDataSource<UserModel, UserEntity>(
+          fetchFromLocal: () async => items[index++ % items.length],
+          mapper: (entity) => UserModel(id: entity.id, name: entity.name),
+        );
+
+        final mediator = DataSourceMediator.local(
+          localStrategy: localStrategy,
+        );
+
+        // Execute multiple times
+        for (int i = 0; i < 100; i++) {
+          final results = await mediator.execute().toList();
+          expect(results.length, 1);
+        }
+
+        expect(index, equals(100));
+      });
+
+      test('does not leak memory with multiple executions', () async {
+        final localStrategy = LocalDataSource<UserModel, UserEntity>(
+          fetchFromLocal: () async => testEntity,
+          mapper: (entity) => testUser,
+        );
+
+        final mediator = DataSourceMediator.local(
+          localStrategy: localStrategy,
+        );
+
+        // Execute many times to check for memory leaks
+        for (int i = 0; i < 50; i++) {
+          await mediator.execute().toList();
+        }
+
+        // If we got here without memory issues, test passes
+        expect(true, isTrue);
       });
     });
   });

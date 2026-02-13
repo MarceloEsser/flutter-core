@@ -3,17 +3,20 @@ import 'package:flutter_core/datasources/remote/response/reponse.dart';
 
 sealed class Result {}
 
-final class Data<T> implements Result {
+final class Data<T> extends Result {
   final T data;
   final String? message;
 
   Data(this.data, {this.message});
 }
 
-final class Error implements Result {
+final class Failure extends Result implements Exception {
   final String message;
 
-  Error(this.message);
+  Failure(this.message);
+
+  @override
+  String toString() => 'DataSourceMediator Failure: $message';
 }
 
 /*
@@ -52,36 +55,36 @@ final class DataSourceMediator<D extends Object?, N extends Object?,
   }
 
   Stream<Result> execute() async* {
-    yield* _localStrategyHandler();
-    yield* _remoteStrategyHandler();
+    if (_remoteStrategy != null) {
+      yield* _remoteStrategyHandler();
+    }
+    if (_localStrategy != null) {
+      yield* _localStrategyHandler();
+    }
   }
 
   Stream<Result> _localStrategyHandler() async* {
-    if (_localStrategy != null) {
-      try {
-        final localData = await _localStrategy.fetch();
-        if (localData != null) {
-          yield Data(localData);
-        }
-      } catch (e) {
-        yield Error("Local fetch error: $e");
-      }
+    try {
+      final localData = await _localStrategy?.fetch();
+      yield Data(localData);
+    } catch (e) {
+      yield Failure("Local fetch error: $e");
     }
   }
 
   Stream<Result> _remoteStrategyHandler() async* {
-    if (_remoteStrategy != null) {
-      final result = await _remoteStrategy.fetchWithMetadata();
-      if (result.isSuccessful) {
-        if (result.data != null) {
-          yield Data(result.data as D, message: result.message);
+    final result = await _remoteStrategy?.fetchWithMetadata();
+    if (result?.isSuccessful ?? false) {
+      yield Data(result?.data as D, message: result?.message);
+      try {
+        if (_saveCallResult != null && result?.response is Response<N>) {
+          await _saveCallResult.call(result?.response as Response<N>);
         }
-        if (_saveCallResult != null && result.response is Response<N>) {
-          await _saveCallResult.call(result.response as Response<N>);
-        }
-      } else {
-        yield Error(result.message ?? "Unknown error");
+      } catch (e) {
+        yield Failure("Save call result error: $e");
       }
+    } else {
+      yield Failure(result?.message ?? "Unknown error");
     }
   }
 }

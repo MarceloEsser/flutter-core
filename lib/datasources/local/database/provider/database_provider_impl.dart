@@ -6,32 +6,38 @@ import 'package:sqflite/sqflite.dart';
 
 class DatabaseProviderImpl extends DatabaseProvider {
   final String _dbName;
-
-  DatabaseProviderImpl(this._dbName);
-
-  Future<String> get _path async => await getDatabasesPath();
+  Database? _database;
+  final int _version;
+  DatabaseProviderImpl({required String dbName, int version = 1})
+      : _dbName = dbName,
+        _version = version;
 
   @override
-  Future<String> get path => _path;
+  Future<String> get path async => await getDatabasesPath();
 
   @override
   Future<Database> get database async {
-    return await openDatabase(
-      join(await _path, _dbName),
-      version: 1,
-      onOpen: (database) async {
-        const duration = Duration(seconds: 3);
-        Future.delayed(duration, () async {
-          await close();
-          throw TimeoutException(
-            "Database timout excpetion, it is open from more than 3 seconds",
-            duration,
-          );
-        });
-      },
-    );
+    if (_database != null) return _database!;
+    try {
+      _database = await openDatabase(
+        join(await path, _dbName),
+        version: _version,
+      );
+      if (_database == null) {
+        throw Exception(
+          "Database initialization failed, database instance is null after opening.",
+        );
+      }
+    } catch (e) {
+      throw Exception("Error opening database: $e");
+    }
+    return _database!;
   }
 
   @override
-  Future<void> close() async => await (await database).close();
+  Future<void> close() async {
+    if (_database != null) {
+      await _database!.close();
+    }
+  }
 }
