@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_core/datasources/remote/client/http_client_exception.dart';
@@ -6,28 +7,59 @@ import 'package:flutter_core/datasources/remote/client/request/request.dart';
 import 'package:flutter_core/datasources/remote/response/reponse.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
 
+import 'internal_client_test.mocks.dart';
+
+@GenerateMocks([http.Client])
 void main() {
   group('InternalClient -', () {
     late String baseUrl;
+    late MockClient mockHttpClient;
 
     setUp(() {
       baseUrl = 'api.example.com';
+      mockHttpClient = MockClient();
     });
+
+    http.Response _createSuccessResponse([Map<String, dynamic>? data]) {
+      return http.Response(
+        jsonEncode(data ?? {'success': true}),
+        HttpStatus.ok,
+        headers: {'content-type': 'application/json'},
+      );
+    }
+
+    http.StreamedResponse _createStreamedResponse(int statusCode,
+        [String? body]) {
+      return http.StreamedResponse(
+        Stream.value(utf8.encode(body ?? jsonEncode({'success': true}))),
+        statusCode,
+        headers: {'content-type': 'application/json'},
+      );
+    }
 
     group('GET Requests', () {
       test('should send GET request successfully', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.get('/users'),
         );
 
         expect(response, isA<Response>());
+        expect(response.status, HttpStatus.ok);
       });
 
       test('should include query parameters in GET request', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.get(
@@ -37,10 +69,18 @@ void main() {
         );
 
         expect(response, isA<Response>());
+        verify(mockHttpClient.send(
+          argThat(predicate<http.BaseRequest>((req) =>
+              req.url.queryParameters['page'] == '1' &&
+              req.url.queryParameters['limit'] == '10')),
+        )).called(1);
       });
 
       test('should include custom headers in GET request', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.get(
@@ -50,20 +90,35 @@ void main() {
         );
 
         expect(response, isA<Response>());
+        verify(mockHttpClient.send(
+          argThat(predicate<http.BaseRequest>(
+              (req) => req.headers['Authorization'] == 'Bearer token123')),
+        )).called(1);
       });
 
       test('should handle absolute URLs in GET request', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.get('https://api.other.com/data'),
         );
 
         expect(response, isA<Response>());
+        verify(mockHttpClient.send(
+          argThat(predicate<http.BaseRequest>(
+              (req) => req.url.toString() == 'https://api.other.com/data')),
+        )).called(1);
       });
 
       test('should use mapper to transform response', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any)).thenAnswer((_) async =>
+            _createStreamedResponse(
+                HttpStatus.ok, jsonEncode({'name': 'John Doe'})));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send<String>(
           request: Request.get(
@@ -73,12 +128,16 @@ void main() {
         );
 
         expect(response, isA<Response<String>>());
+        expect(response.data, equals('John Doe'));
       });
     });
 
     group('POST Requests', () {
       test('should send POST request with JSON body', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'name': 'John', 'email': 'john@example.com'};
 
         final response = await client.send(
@@ -89,10 +148,16 @@ void main() {
         );
 
         expect(response, isA<Response>());
+        verify(mockHttpClient.send(
+          argThat(predicate<http.BaseRequest>((req) => req.method == 'POST')),
+        )).called(1);
       });
 
       test('should include content-type header in POST request', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'data': 'test'};
 
         final response = await client.send(
@@ -103,7 +168,10 @@ void main() {
       });
 
       test('should send POST request with query parameters', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'data': 'test'};
 
         final response = await client.send(
@@ -118,7 +186,10 @@ void main() {
       });
 
       test('should send POST request with form data', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'username': 'john', 'password': 'secret'};
 
         final response = await client.send(
@@ -133,7 +204,10 @@ void main() {
       });
 
       test('should send anonymous POST request', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'email': 'test@example.com'};
 
         final response = await client.send(
@@ -150,7 +224,10 @@ void main() {
 
     group('PUT Requests', () {
       test('should send PUT request with body', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'name': 'Updated Name'};
 
         final response = await client.send(
@@ -164,7 +241,10 @@ void main() {
       });
 
       test('should handle PUT request with custom headers', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'data': 'test'};
 
         final response = await client.send(
@@ -181,7 +261,10 @@ void main() {
 
     group('DELETE Requests', () {
       test('should send DELETE request', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.delete('/users/1'),
@@ -191,7 +274,10 @@ void main() {
       });
 
       test('should send DELETE request with query parameters', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.delete(
@@ -206,7 +292,11 @@ void main() {
 
     group('Response Mapping', () {
       test('should map JSON response to typed object', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any)).thenAnswer((_) async =>
+            _createStreamedResponse(
+                HttpStatus.ok, jsonEncode({'id': 1, 'name': 'John'})));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send<Map<String, dynamic>>(
           request: Request.get(
@@ -216,10 +306,14 @@ void main() {
         );
 
         expect(response, isA<Response<Map<String, dynamic>>>());
+        expect(response.data, isA<Map<String, dynamic>>());
       });
 
       test('should handle mapper returning null', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send<String?>(
           request: Request.get(
@@ -229,34 +323,44 @@ void main() {
         );
 
         expect(response, isA<Response<String?>>());
+        expect(response.data, isNull);
       });
     });
 
     group('Retry Logic', () {
       test('should handle retries gracefully', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.get('/protected'),
         );
 
         expect(response, isA<Response>());
+        expect(response.status, HttpStatus.ok);
       });
 
       test('should return failure resource on persistent errors', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any)).thenAnswer((_) async =>
+            _createStreamedResponse(HttpStatus.internalServerError));
 
-        final response = await client.send(
-          request: Request.get('/error'),
+        final client = InternalClient(baseUrl, client: mockHttpClient);
+
+        expect(
+          () => client.send(request: Request.get('/error')),
+          throwsA(isA<HttpStatusException>()),
         );
-
-        expect(response, isA<Response>());
       });
     });
 
     group('Header Management', () {
       test('should add default content-type header', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.post('/data', body: {}),
@@ -266,22 +370,30 @@ void main() {
       });
 
       test('should not override provided headers', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.post(
             '/data',
             body: {},
-            headers: {'content-type': 'application/xml'},
+            headers: {'Content-Type': 'application/xml'},
           ),
         );
 
         expect(response, isA<Response>());
+        expect(response.status, HttpStatus.ok);
+        verify(mockHttpClient.send(any)).called(1);
       });
 
       test('should handle authorization header when shouldAuthorize is true',
           () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.get(
@@ -295,7 +407,10 @@ void main() {
 
       test('should skip authorization header when shouldAuthorize is false',
           () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.get(
@@ -308,7 +423,10 @@ void main() {
       });
 
       test('should handle isAnonymous flag', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.get(
@@ -323,17 +441,27 @@ void main() {
 
     group('URL Construction', () {
       test('should construct URL with baseUrl and path', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.get('/users/123'),
         );
 
         expect(response, isA<Response>());
+        verify(mockHttpClient.send(
+          argThat(predicate<http.BaseRequest>((req) =>
+              req.url.toString() == 'https://api.example.com/users/123')),
+        )).called(1);
       });
 
       test('should handle path starting with /', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.get('/api/v1/users'),
@@ -343,39 +471,53 @@ void main() {
       });
 
       test('should use full URL when path contains https://', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.get('https://other-api.com/data'),
         );
 
         expect(response, isA<Response>());
+        verify(mockHttpClient.send(
+          argThat(predicate<http.BaseRequest>(
+              (req) => req.url.toString() == 'https://other-api.com/data')),
+        )).called(1);
       });
     });
 
     group('Error Handling', () {
       test('should return failure resource on format exception', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any)).thenAnswer((_) async =>
+            _createStreamedResponse(HttpStatus.ok, 'invalid json'));
 
-        final response = await client.send(
-          request: Request.get('/invalid-json'),
+        final client = InternalClient(baseUrl, client: mockHttpClient);
+
+        expect(
+          () => client.send(request: Request.get('/invalid-json')),
+          throwsA(isA<JsonParseException>()),
         );
-
-        expect(response, isA<Response>());
-        // Response could be success or failure depending on actual response
       });
 
       test('should throw exception on client exception', () async {
-        final client = InternalClient('invalid..domain..com');
+        when(mockHttpClient.send(any))
+            .thenThrow(http.ClientException('Connection failed'));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         expect(
           () => client.send(request: Request.get('/test')),
-          throwsA(isA<HttpClientException>()),
+          throwsA(isA<NetworkException>()),
         );
       });
 
       test('should throw exception on network errors', () async {
-        final client = InternalClient('non-existent-domain-12345.com');
+        when(mockHttpClient.send(any))
+            .thenThrow(const SocketException('Failed host lookup'));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         expect(
           () => client.send(request: Request.get('/test')),
@@ -384,9 +526,11 @@ void main() {
       });
 
       test('should throw exception for error responses', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any)).thenAnswer(
+            (_) async => _createStreamedResponse(HttpStatus.notFound));
 
-        // This would typically fail with a real API (404)
+        final client = InternalClient(baseUrl, client: mockHttpClient);
+
         expect(
           () => client.send(request: Request.get('/not-found')),
           throwsA(isA<HttpStatusException>()),
@@ -423,7 +567,10 @@ void main() {
 
     group('Form Data Handling', () {
       test('should encode map as form data when isFormData is true', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'key1': 'value1', 'key2': 'value2'};
 
         final response = await client.send(
@@ -438,7 +585,10 @@ void main() {
       });
 
       test('should set correct content-type for form data', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.post(
@@ -449,12 +599,20 @@ void main() {
         );
 
         expect(response, isA<Response>());
+        verify(mockHttpClient.send(
+          argThat(predicate<http.BaseRequest>((req) =>
+              req.headers['content-type'] ==
+              'application/x-www-form-urlencoded')),
+        )).called(1);
       });
     });
 
     group('Debug Logging', () {
       test('should log request details in debug mode', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         // In debug mode, this should log without throwing
         await client.send(
@@ -462,33 +620,45 @@ void main() {
         );
 
         // No assertion needed - just verifying it doesn't crash
+        expect(true, isTrue);
       });
 
       test('should log response details in debug mode', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         await client.send(
           request: Request.post('/users', body: {'test': 'data'}),
         );
 
         // Verify logging doesn't interfere with functionality
+        expect(true, isTrue);
       });
     });
 
     group('Resource Wrappers', () {
       test('should include raw JSON in Resource', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any)).thenAnswer((_) async =>
+            _createStreamedResponse(
+                HttpStatus.ok, jsonEncode({'id': 1, 'name': 'Test'})));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.get('/users/1'),
         );
 
         expect(response, isA<Response>());
-        // raw property should be accessible
+        expect(response.raw, isNotNull);
       });
 
       test('should have isSuccessful property', () async {
-        final client = InternalClient(baseUrl);
+        when(mockHttpClient.send(any))
+            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         final response = await client.send(
           request: Request.get('/users'),
@@ -496,14 +666,18 @@ void main() {
 
         expect(response, isA<Response>());
         expect(response.isSuccessful, isA<bool>());
+        expect(response.isSuccessful, isTrue);
       });
 
       test('should throw exception on error', () async {
-        final client = InternalClient('invalid..domain..com');
+        when(mockHttpClient.send(any))
+            .thenThrow(http.ClientException('Network error'));
+
+        final client = InternalClient(baseUrl, client: mockHttpClient);
 
         expect(
           () => client.send(request: Request.get('/test')),
-          throwsA(isA<HttpClientException>()),
+          throwsA(isA<NetworkException>()),
         );
       });
     });

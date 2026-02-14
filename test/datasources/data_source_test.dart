@@ -248,8 +248,6 @@ void main() {
 
       test('should fetch and map response successfully (201 Created)',
           () async {
-        // Note: created() extension has a bug - it checks ok() instead of created
-        // So 201 status code is not recognized as successful
         final dataSource = RemoteDataSource<UserModel, UserDto>(
           fetchFromRemote: () async => createdResponse,
           mapper: (response) => UserModel(
@@ -261,19 +259,24 @@ void main() {
 
         final result = await dataSource.fetch();
 
-        // Currently returns null because created() wrongly checks for ok() status instead of created
-        expect(result, isNull);
+        expect(result, isNotNull);
+        expect(result, isA<UserModel>());
+        expect(result?.id, equals('1'));
       });
 
-      test('should return null for unsuccessful response', () async {
+      test('should throw HttpStatusException for unsuccessful response',
+          () async {
         final dataSource = RemoteDataSource<UserModel, UserDto>(
           fetchFromRemote: () async => errorResponse,
           mapper: (response) => testModel,
         );
 
-        final result = await dataSource.fetch();
-
-        expect(result, isNull);
+        // In the exception-based architecture, error responses should cause fetchFromRemote to throw
+        // If somehow an error response is returned, RemoteDataSource will throw HttpStatusException
+        expect(
+          () => dataSource.fetch(),
+          throwsA(isA<Exception>()),
+        );
       });
 
       test('should propagate exceptions from fetchFromRemote', () async {
@@ -313,9 +316,11 @@ void main() {
           },
         );
 
-        final result = await dataSource.fetch();
-
-        expect(result, isNull);
+        // In the exception-based architecture, error responses cause an exception
+        expect(
+          () => dataSource.fetch(),
+          throwsA(isA<Exception>()),
+        );
         expect(mapperCalled, isFalse);
       });
     });
@@ -336,18 +341,18 @@ void main() {
         expect(result.message, equals('Success'));
       });
 
-      test('should return RemoteResult with null data for error response',
+      test('should throw exception for error response in fetchWithMetadata',
           () async {
         final dataSource = RemoteDataSource<UserModel, UserDto>(
           fetchFromRemote: () async => errorResponse,
           mapper: (response) => testModel,
         );
 
-        final result = await dataSource.fetchWithMetadata();
-
-        expect(result.data, isNull);
-        expect(result.isSuccessful, isFalse);
-        expect(result.message, equals('Bad Request'));
+        // In the exception-based architecture, error responses cause fetchFromRemote to throw
+        expect(
+          () => dataSource.fetchWithMetadata(),
+          throwsA(isA<Exception>()),
+        );
       });
 
       test('should include response object in RemoteResult', () async {
@@ -363,7 +368,6 @@ void main() {
       });
 
       test('should handle created status (201) as successful', () async {
-        // Note: created() extension has a bug - it checks ok() instead of created
         final dataSource = RemoteDataSource<UserModel, UserDto>(
           fetchFromRemote: () async => createdResponse,
           mapper: (response) => testModel,
@@ -371,9 +375,9 @@ void main() {
 
         final result = await dataSource.fetchWithMetadata();
 
-        // Currently false because created() wrongly checks for ok() status
-        expect(result.isSuccessful, isFalse);
-        expect(result.data, isNull);
+        expect(result.isSuccessful, isTrue);
+        expect(result.data, isNotNull);
+        expect(result.data, equals(testModel));
       });
 
       test('should propagate mapper exceptions in fetchWithMetadata', () async {
@@ -402,7 +406,6 @@ void main() {
       });
 
       test('isSuccessful should be true for 201 Created', () async {
-        // Note: created() extension has a bug - it checks ok() instead of created
         final dataSource = RemoteDataSource<UserModel, UserDto>(
           fetchFromRemote: () async => createdResponse,
           mapper: (response) => testModel,
@@ -410,19 +413,21 @@ void main() {
 
         final result = await dataSource.fetchWithMetadata();
 
-        // Currently false because of the bug in created() extension
-        expect(result.isSuccessful, isFalse);
+        expect(result.isSuccessful, isTrue);
+        expect(result.data, isNotNull);
       });
 
-      test('isSuccessful should be false for error statuses', () async {
+      test('should throw exception for error responses', () async {
         final dataSource = RemoteDataSource<UserModel, UserDto>(
           fetchFromRemote: () async => errorResponse,
           mapper: (response) => testModel,
         );
 
-        final result = await dataSource.fetchWithMetadata();
-
-        expect(result.isSuccessful, isFalse);
+        // In the exception-based architecture, error responses cause fetchFromRemote to throw
+        expect(
+          () => dataSource.fetchWithMetadata(),
+          throwsA(isA<Exception>()),
+        );
       });
 
       test('message should return response message', () async {
@@ -540,20 +545,16 @@ void main() {
       expect(response.ok(), isFalse);
     });
 
-    test('created() should return true for 200 status (bug in implementation)',
-        () {
-      // Note: current implementation has ok() duplicated for created()
+    test('created() should return false for 200 OK status', () {
       final response = Response(status: HttpStatus.ok);
 
-      expect(response.created(), isTrue);
+      expect(response.created(), isFalse);
     });
 
-    test('created() should return false for 201 status (bug in implementation)',
-        () {
-      // Note: This test documents the bug where created() checks for ok instead of created
+    test('created() should return true for 201 Created status', () {
       final response = Response(status: HttpStatus.created);
 
-      expect(response.created(), isFalse);
+      expect(response.created(), isTrue);
     });
   });
 }

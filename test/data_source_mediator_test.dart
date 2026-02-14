@@ -154,11 +154,11 @@ void main() {
         final results = await mediator.execute().toList();
 
         expect(results.length, 1);
-        expect(results[0], isA<Data<UserModel>>());
-        expect((results[0] as Data<UserModel>).data, testUser);
+        expect(results[0], isA<Data<UserModel?>>());
+        expect((results[0] as Data<UserModel?>).data, testUser);
       });
 
-      test('does not yield when local fetch returns null', () async {
+      test('yields Data with null when local fetch returns null', () async {
         final localStrategy = LocalDataSource<UserModel, UserEntity>(
           fetchFromLocal: () async => null,
           mapper: (entity) => testUser,
@@ -170,7 +170,9 @@ void main() {
 
         final results = await mediator.execute().toList();
 
-        expect(results.length, 0);
+        expect(results.length, 1);
+        expect(results[0], isA<Data<UserModel?>>());
+        expect((results[0] as Data<UserModel?>).data, isNull);
       });
 
       test('yields error when local fetch throws exception', () async {
@@ -206,8 +208,8 @@ void main() {
         final results = await mediator.execute().toList();
 
         expect(results.length, 1);
-        expect(results[0], isA<Data<UserModel>>());
-        expect((results[0] as Data<UserModel>).data, testUser);
+        expect(results[0], isA<Data<UserModel?>>());
+        expect((results[0] as Data<UserModel?>).data, testUser);
       });
 
       test('includes message in data when available', () async {
@@ -223,13 +225,13 @@ void main() {
         final results = await mediator.execute().toList();
 
         expect(results.length, 1);
-        expect(results[0], isA<Data<UserModel>>());
-        expect((results[0] as Data<UserModel>).message, 'Success');
+        expect(results[0], isA<Data<UserModel?>>());
+        expect((results[0] as Data<UserModel?>).message, 'Success');
       });
 
-      test('yields error when remote fetch fails', () async {
+      test('yields Failure when remote fetch throws exception', () async {
         final remoteStrategy = RemoteDataSource<UserModel, UserDto>(
-          fetchFromRemote: () async => errorResponse,
+          fetchFromRemote: () async => throw Exception('Network error'),
           mapper: (response) => testUser,
         );
 
@@ -241,10 +243,11 @@ void main() {
 
         expect(results.length, 1);
         expect(results[0], isA<Failure>());
-        expect((results[0] as Failure).message, 'Bad Request');
+        expect((results[0] as Failure).message, contains('Remote fetch error'));
+        expect((results[0] as Failure).message, contains('Network error'));
       });
 
-      test('yields error with default message when response has no message',
+      test('yields Failure when response throws for non-success status',
           () async {
         final noMessageResponse = Response<UserDto>(
           data: testDto,
@@ -252,8 +255,9 @@ void main() {
           message: null,
         );
 
+        // InternalClient throws on 500, so simulate that
         final remoteStrategy = RemoteDataSource<UserModel, UserDto>(
-          fetchFromRemote: () async => noMessageResponse,
+          fetchFromRemote: () async => throw Exception('Internal Server Error'),
           mapper: (response) => testUser,
         );
 
@@ -265,10 +269,10 @@ void main() {
 
         expect(results.length, 1);
         expect(results[0], isA<Failure>());
-        expect((results[0] as Failure).message, 'Unknown error');
+        expect((results[0] as Failure).type, ErrorType.unknown);
       });
 
-      test('does not yield when mapper returns null', () async {
+      test('yields Data with null when mapper returns null', () async {
         final remoteStrategy = RemoteDataSource<UserModel?, UserDto>(
           fetchFromRemote: () async => successResponse,
           mapper: (response) => null,
@@ -280,7 +284,9 @@ void main() {
 
         final results = await mediator.execute().toList();
 
-        expect(results.length, 0);
+        expect(results.length, 1);
+        expect(results[0], isA<Data<UserModel?>>());
+        expect((results[0] as Data<UserModel?>).data, isNull);
       });
 
       test('calls saveCallResult when provided and fetch succeeds', () async {
@@ -306,11 +312,12 @@ void main() {
         expect(savedResponse, successResponse);
       });
 
-      test('does not call saveCallResult when fetch fails', () async {
+      test('does not call saveCallResult when fetch throws exception',
+          () async {
         bool saveCalled = false;
 
         final remoteStrategy = RemoteDataSource<UserModel, UserDto>(
-          fetchFromRemote: () async => errorResponse,
+          fetchFromRemote: () async => throw Exception('Network error'),
           mapper: (response) => testUser,
         );
 
@@ -347,10 +354,10 @@ void main() {
         final results = await mediator.execute().toList();
 
         expect(results.length, 2);
-        expect(results[0], isA<Data<UserModel>>());
-        expect((results[0] as Data<UserModel>).data.name, 'Local User');
-        expect(results[1], isA<Data<UserModel>>());
-        expect((results[1] as Data<UserModel>).data.name, 'Remote User');
+        expect(results[0], isA<Data<UserModel?>>());
+        expect((results[0] as Data<UserModel?>).data?.name, 'Local User');
+        expect(results[1], isA<Data<UserModel?>>());
+        expect((results[1] as Data<UserModel?>).data?.name, 'Remote User');
       });
 
       test('yields only remote data when local returns null', () async {
@@ -372,7 +379,7 @@ void main() {
         final results = await mediator.execute().toList();
 
         expect(results.length, 1);
-        expect(results[0], isA<Data<UserModel>>());
+        expect(results[0], isA<Data<UserModel?>>());
       });
 
       test('yields local data and remote error', () async {
@@ -394,7 +401,7 @@ void main() {
         final results = await mediator.execute().toList();
 
         expect(results.length, 2);
-        expect(results[0], isA<Data<UserModel>>());
+        expect(results[0], isA<Data<UserModel?>>());
         expect(results[1], isA<Failure>());
       });
 
@@ -451,8 +458,8 @@ void main() {
 
         expect(results1.length, 1);
         expect(results2.length, 1);
-        expect((results1[0] as Data<UserModel>).data, testUser);
-        expect((results2[0] as Data<UserModel>).data, testUser);
+        expect((results1[0] as Data<UserModel?>).data, testUser);
+        expect((results2[0] as Data<UserModel?>).data, testUser);
       });
 
       test('throws error when listening to same stream twice', () async {
@@ -526,7 +533,7 @@ void main() {
         final results = await mediator.execute().toList();
 
         expect(results.length, 2);
-        expect(results[0], isA<Data<UserModel>>());
+        expect(results[0], isA<Data<UserModel?>>());
         expect(results[1], isA<Failure>());
         expect((results[1] as Failure).message,
             contains('Save call result error'));
@@ -549,7 +556,7 @@ void main() {
 
         // Should get data first, then failure from save
         expect(results.length, 2);
-        final firstResult = results[0] as Data<UserModel>;
+        final firstResult = results[0] as Data<UserModel?>;
         expect(firstResult.data, equals(testUser));
       });
 
@@ -607,7 +614,7 @@ void main() {
         final results = await mediator.execute().toList();
 
         expect(results.length, 2);
-        expect(executionOrder, ['remote_fetch', 'save', 'local_fetch']);
+        expect(executionOrder, ['local_fetch', 'remote_fetch', 'save']);
       });
 
       test('handles concurrent executions independently', () async {
@@ -649,7 +656,7 @@ void main() {
         final results = await mediator.execute().toList();
 
         expect(results.length, 1);
-        expect((results[0] as Data<int>).data, equals(1));
+        expect((results[0] as Data<int?>).data, equals(1));
       });
 
       test('preserves response metadata throughout stream', () async {
@@ -671,7 +678,7 @@ void main() {
         final results = await mediator.execute().toList();
 
         expect(results.length, 1);
-        final data = results[0] as Data<UserModel>;
+        final data = results[0] as Data<UserModel?>;
         expect(data.message, equals('Operation completed successfully'));
       });
 

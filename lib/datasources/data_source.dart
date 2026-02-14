@@ -57,6 +57,12 @@ class RemoteDataSource<R, N> implements DataSource<R> {
 
     if (response.ok() || response.created()) {
       data = _mapper(response);
+    } else {
+      // Fallback: throw if somehow we get a non-success response
+      throw HttpStatusException(
+        statusCode: response.status,
+        message: response.message ?? 'Unknown error',
+      );
     }
 
     return RemoteResult(

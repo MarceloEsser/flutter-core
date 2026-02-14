@@ -14,9 +14,10 @@ import 'package:logging/logging.dart';
 final class InternalClient {
   final String _baseUrl;
   final log = Logger('HttpClient');
-  final _inner = http.Client();
+  final http.Client _inner;
 
-  InternalClient(this._baseUrl);
+  InternalClient(this._baseUrl, {http.Client? client})
+      : _inner = client ?? http.Client();
 
   http.Client get _client => RetryClient(
         _inner,
@@ -212,7 +213,11 @@ final class InternalClient {
     http.BaseResponse? response,
     int retryCount,
   ) async {
-    if (response == null) throw Exception('_onRetry Response is null');
+    if (response == null) {
+      debug("Retry: ${request.url}");
+      debug("Cause: No response received (network error or timeout)");
+      return;
+    }
 
     debug("Retry: ${request.url}");
     debug("Cause: ${response.reasonPhrase}");

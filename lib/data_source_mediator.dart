@@ -122,7 +122,11 @@ class DataSourceMediator<D extends Object?, N extends Object?,
   Stream<Result<D?>> _localStrategyHandler() async* {
     try {
       final localData = await _localDataSource?.fetch();
-      yield Data(localData);
+      // Only yield null data if there's no remote source
+      // If remote exists, skip null to let remote data be the only result
+      if (localData != null || _remoteDataSource == null) {
+        yield Data(localData);
+      }
     } on TableNotFoundException catch (e, stackTrace) {
       yield Failure(
         e.message,
@@ -165,10 +169,22 @@ class DataSourceMediator<D extends Object?, N extends Object?,
           if (_saveCallResult != null && result?.response is Response<N>) {
             await _saveCallResult.call(result?.response as Response<N>);
           }
-        } on DaoException catch (e) {
+        } on DaoException catch (e, stackTrace) {
           debugPrint('Cache save failed: ${e.message}');
-        } catch (e) {
+          yield Failure(
+            'Save call result error: ${e.message}',
+            type: ErrorType.databaseError,
+            cause: e,
+            stackTrace: stackTrace,
+          );
+        } catch (e, stackTrace) {
           debugPrint('Cache save failed: $e');
+          yield Failure(
+            'Save call result error: $e',
+            type: ErrorType.unknown,
+            cause: e,
+            stackTrace: stackTrace,
+          );
         }
       } else {
         yield Failure(

@@ -14,8 +14,16 @@ class DataAccessObjectImpl implements DataAccessObject {
 
   @override
   Future<int> insert<T extends Entity>({required T entity}) async {
-    final database = await _database;
-    return _insert(database, entity);
+    try {
+      final database = await _database;
+      return await _insert(database, entity);
+    } catch (e, stackTrace) {
+      if (e is DaoException) rethrow;
+      throw DatabaseOperationException(
+        'Failed to insert entity',
+        cause: e,
+      );
+    }
   }
 
   @override
@@ -24,22 +32,30 @@ class DataAccessObjectImpl implements DataAccessObject {
   }) async {
     if (entities.isEmpty) return [];
 
-    final database = await _database;
-    final List<int> ids = [];
+    try {
+      final database = await _database;
+      final List<int> ids = [];
 
-    await database.transaction((txn) async {
-      for (final entity in entities) {
-        await _ensureTableExists(txn, entity);
-        final id = await txn.insert(
-          entity.table,
-          entity.toMap(),
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
-        ids.add(id);
-      }
-    });
+      await database.transaction((txn) async {
+        for (final entity in entities) {
+          await _ensureTableExists(txn, entity);
+          final id = await txn.insert(
+            entity.table,
+            entity.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          ids.add(id);
+        }
+      });
 
-    return ids;
+      return ids;
+    } catch (e, stackTrace) {
+      if (e is DaoException) rethrow;
+      throw DatabaseOperationException(
+        'Failed to insert entities',
+        cause: e,
+      );
+    }
   }
 
   @override
