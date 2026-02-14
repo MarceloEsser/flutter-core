@@ -3,9 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_core/datasources/remote/client/http_client_exception.dart';
 import 'package:flutter_core/datasources/remote/client/request/request.dart';
 import 'package:flutter_core/datasources/remote/client/request/request_verb.dart';
-import 'package:flutter_core/resource.dart';
+import 'package:flutter_core/datasources/remote/response/reponse.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/retry.dart';
 import 'package:logging/logging.dart';
@@ -26,37 +27,45 @@ final class InternalClient {
         onRetry: _onRetry,
       );
 
-  Future<Resource<T>> send<T>({
+  Future<Response<T>> send<T>({
     required Request request,
   }) async {
+    late Uri uri;
+
     try {
-      late Uri uri;
       if (!request.path.contains('https')) {
         uri = Uri.parse('https://$_baseUrl${request.path}');
       } else {
         uri = Uri.parse(request.path);
       }
+    } on FormatException catch (e) {
+      throw RequestFormatException(
+        'Invalid URL format: ${e.message}',
+        cause: e,
+      );
+    }
 
-      await _addHeaders(request);
+    await _addHeaders(request);
 
-      if (request.queryParameters != null) {
-        uri = uri.replace(queryParameters: request.queryParameters);
-      }
+    if (request.queryParameters != null) {
+      uri = uri.replace(queryParameters: request.queryParameters);
+    }
 
-      debug('Sending @${request.verb.name.toUpperCase()}: $uri');
-      debug('Header: ${request.headers}');
+    debug('Sending @${request.verb.name.toUpperCase()}: $uri');
+    debug('Header: ${request.headers}');
 
-      if (request.verb != RequestVerb.get) {
-        debug('Body: ${jsonEncode(request.body).toString()}');
-      }
+    if (request.verb != RequestVerb.get) {
+      debug('Body: ${jsonEncode(request.body).toString()}');
+    }
 
-      String encodeMap(Map data) {
-        return data.entries
-            .map((e) =>
-                '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
-            .join('&');
-      }
+    String encodeMap(Map data) {
+      return data.entries
+          .map((e) =>
+              '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+          .join('&');
+    }
 
+    try {
       final formattedBody =
           request.isFormData ? encodeMap(request.body) : request.body;
       return await _sendRequest<T>(
@@ -64,21 +73,28 @@ final class InternalClient {
         uri,
         request,
       );
-    } on FormatException catch (f) {
-      final message = '${f.message}: ${f.source}';
-      debug(message);
-      return Resource.failure(message: message);
-    } on http.ClientException catch (c) {
-      final message = '${c.uri}: ${c.message}';
-      debug(message);
-      return Resource.failure(message: message);
-    } catch (e) {
-      debug('Result: $e');
-      return Resource.failure(message: e.toString());
+    } on FormatException catch (e) {
+      throw RequestFormatException(
+        'Invalid request format: ${e.message}',
+        uri: uri,
+        cause: e,
+      );
+    } on SocketException catch (e) {
+      throw NetworkException(
+        'Network unavailable: ${e.message}',
+        uri: uri,
+        cause: e,
+      );
+    } on http.ClientException catch (e) {
+      throw NetworkException(
+        'HTTP client error: ${e.message}',
+        uri: uri,
+        cause: e,
+      );
     }
   }
 
-  Future<Resource<T>> _sendRequest<T>(
+  Future<Response<T>> _sendRequest<T>(
     dynamic encodedBody,
     Uri uri,
     Request request,
@@ -91,10 +107,17 @@ final class InternalClient {
     )[request.verb];
 
     if (method == null) {
-      throw Exception('Method not found');
+      throw RequestFormatException('Invalid HTTP verb: ${request.verb}',
+          uri: uri);
     }
 
-    final response = await method();
+    final response = await method().timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        throw TimeoutException('Request timeout after 30s', uri: uri);
+      },
+    );
+
     dynamic json;
     bool isJsonResponse = false;
 
@@ -104,6 +127,14 @@ final class InternalClient {
         json = jsonDecode(decodedBody);
         isJsonResponse = true;
       } catch (e) {
+        final contentType = response.headers['content-type'];
+        if (contentType?.contains('application/json') ?? false) {
+          throw JsonParseException(
+            'Failed to parse JSON response: ${e.toString()}',
+            rawBody: utf8.decode(response.bodyBytes),
+            uri: uri,
+          );
+        }
         debug('Non-JSON response: ${utf8.decode(response.bodyBytes)}');
         json = null;
       }
@@ -118,15 +149,21 @@ final class InternalClient {
       debug('Response: ${utf8.decode(response.bodyBytes)}');
     }
 
-    if (response.statusCode >= HttpStatus.ok &&
-        response.statusCode < HttpStatus.multipleChoices) {
-      return Resource.success(
-        request.mapper?.call(json),
-        raw: json,
-        message: response.reasonPhrase,
+    if (response.statusCode >= 400) {
+      throw HttpStatusException(
+        statusCode: response.statusCode,
+        message: response.reasonPhrase ?? 'HTTP Error ${response.statusCode}',
+        uri: uri,
+        responseBody: json ?? utf8.decode(response.bodyBytes),
       );
     }
-    return Resource.failure(raw: json, message: response.reasonPhrase);
+
+    return Response<T>(
+      data: request.mapper?.call(json),
+      raw: json ?? utf8.decode(response.bodyBytes),
+      status: response.statusCode,
+      message: response.reasonPhrase,
+    );
   }
 
   Future<void> _addHeaders(Request request) async {

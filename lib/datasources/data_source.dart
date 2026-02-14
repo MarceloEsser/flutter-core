@@ -1,3 +1,4 @@
+import 'package:flutter_core/datasources/remote/client/http_client_exception.dart';
 import 'package:flutter_core/datasources/remote/response/reponse.dart';
 
 sealed class DataSource<Result> {
@@ -34,24 +35,33 @@ class RemoteDataSource<R, N> implements DataSource<R> {
 
   @override
   Future<R?> fetch() async {
-    final wrapper = await _fetchFromRemote();
-    if (wrapper.ok() || wrapper.created()) {
-      return _mapper(wrapper);
+    final response = await _fetchFromRemote();
+    // InternalClient now throws on error status codes,
+    // so if we reach here, it's a success
+    if (response.ok() || response.created()) {
+      return _mapper(response);
     }
-    return null;
+
+    // Fallback: throw if somehow we get a non-success response
+    throw HttpStatusException(
+      statusCode: response.status,
+      message: response.message ?? 'Unknown error',
+    );
   }
 
   Future<RemoteResult<R>> fetchWithMetadata() async {
-    final wrapper = await _fetchFromRemote();
+    final response = await _fetchFromRemote();
+    // InternalClient now throws on error status codes,
+    // so if we reach here, it's a success
     R? data;
 
-    if (wrapper.ok() || wrapper.created()) {
-      data = _mapper(wrapper);
+    if (response.ok() || response.created()) {
+      data = _mapper(response);
     }
 
     return RemoteResult(
       data: data,
-      response: wrapper,
+      response: response,
     );
   }
 }

@@ -54,12 +54,12 @@ void main() {
       testEntity = UserEntity(id: '1', name: 'Test User');
       testDto = UserDto(id: '1', name: 'Test User');
       successResponse = Response<UserDto>(
-        metadata: testDto,
+        data: testDto,
         status: HttpStatus.ok,
         message: 'Success',
       );
       errorResponse = Response<UserDto>(
-        metadata: testDto,
+        data: testDto,
         status: HttpStatus.badRequest,
         message: 'Bad Request',
       );
@@ -78,8 +78,8 @@ void main() {
         );
 
         final mediator = DataSourceMediator<UserModel, UserDto, UserEntity>(
-          localStrategy: localStrategy,
-          remoteStrategy: remoteStrategy,
+          localDataSource: localStrategy,
+          remoteDataSource: remoteStrategy,
         );
 
         expect(mediator, isNotNull);
@@ -92,7 +92,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator<UserModel, Never, UserEntity>(
-          localStrategy: localStrategy,
+          localDataSource: localStrategy,
         );
 
         expect(mediator, isNotNull);
@@ -105,7 +105,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator<UserModel, UserDto, Never>(
-          remoteStrategy: remoteStrategy,
+          remoteDataSource: remoteStrategy,
         );
 
         expect(mediator, isNotNull);
@@ -120,7 +120,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.local(
-          localStrategy: localStrategy,
+          localDataSource: localStrategy,
         );
 
         expect(mediator, isNotNull);
@@ -133,7 +133,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.remote(
-          remoteStrategy: remoteStrategy,
+          remoteDataSource: remoteStrategy,
         );
 
         expect(mediator, isNotNull);
@@ -148,7 +148,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.local(
-          localStrategy: localStrategy,
+          localDataSource: localStrategy,
         );
 
         final results = await mediator.execute().toList();
@@ -165,7 +165,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.local(
-          localStrategy: localStrategy,
+          localDataSource: localStrategy,
         );
 
         final results = await mediator.execute().toList();
@@ -180,7 +180,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.local(
-          localStrategy: localStrategy,
+          localDataSource: localStrategy,
         );
 
         final results = await mediator.execute().toList();
@@ -200,7 +200,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.remote(
-          remoteStrategy: remoteStrategy,
+          remoteDataSource: remoteStrategy,
         );
 
         final results = await mediator.execute().toList();
@@ -217,7 +217,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.remote(
-          remoteStrategy: remoteStrategy,
+          remoteDataSource: remoteStrategy,
         );
 
         final results = await mediator.execute().toList();
@@ -234,7 +234,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.remote(
-          remoteStrategy: remoteStrategy,
+          remoteDataSource: remoteStrategy,
         );
 
         final results = await mediator.execute().toList();
@@ -247,7 +247,7 @@ void main() {
       test('yields error with default message when response has no message',
           () async {
         final noMessageResponse = Response<UserDto>(
-          metadata: testDto,
+          data: testDto,
           status: 500,
           message: null,
         );
@@ -258,7 +258,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.remote(
-          remoteStrategy: remoteStrategy,
+          remoteDataSource: remoteStrategy,
         );
 
         final results = await mediator.execute().toList();
@@ -275,7 +275,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.remote(
-          remoteStrategy: remoteStrategy,
+          remoteDataSource: remoteStrategy,
         );
 
         final results = await mediator.execute().toList();
@@ -293,7 +293,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.remote(
-          remoteStrategy: remoteStrategy,
+          remoteDataSource: remoteStrategy,
           saveCallResult: (response) async {
             saveCalled = true;
             savedResponse = response;
@@ -315,7 +315,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.remote(
-          remoteStrategy: remoteStrategy,
+          remoteDataSource: remoteStrategy,
           saveCallResult: (response) async {
             saveCalled = true;
           },
@@ -340,8 +340,8 @@ void main() {
         );
 
         final mediator = DataSourceMediator<UserModel, UserDto, UserEntity>(
-          localStrategy: localStrategy,
-          remoteStrategy: remoteStrategy,
+          localDataSource: localStrategy,
+          remoteDataSource: remoteStrategy,
         );
 
         final results = await mediator.execute().toList();
@@ -365,8 +365,8 @@ void main() {
         );
 
         final mediator = DataSourceMediator<UserModel, UserDto, UserEntity>(
-          localStrategy: localStrategy,
-          remoteStrategy: remoteStrategy,
+          localDataSource: localStrategy,
+          remoteDataSource: remoteStrategy,
         );
 
         final results = await mediator.execute().toList();
@@ -387,8 +387,8 @@ void main() {
         );
 
         final mediator = DataSourceMediator<UserModel, UserDto, UserEntity>(
-          localStrategy: localStrategy,
-          remoteStrategy: remoteStrategy,
+          localDataSource: localStrategy,
+          remoteDataSource: remoteStrategy,
         );
 
         final results = await mediator.execute().toList();
@@ -413,8 +413,8 @@ void main() {
         );
 
         final mediator = DataSourceMediator<UserModel, UserDto, UserEntity>(
-          localStrategy: localStrategy,
-          remoteStrategy: remoteStrategy,
+          localDataSource: localStrategy,
+          remoteDataSource: remoteStrategy,
           saveCallResult: (response) async {
             saveCalled = true;
           },
@@ -442,7 +442,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.local(
-          localStrategy: localStrategy,
+          localDataSource: localStrategy,
         );
 
         // Each execute() call should create a new stream
@@ -462,7 +462,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.local(
-          localStrategy: localStrategy,
+          localDataSource: localStrategy,
         );
 
         final stream = mediator.execute();
@@ -495,16 +495,16 @@ void main() {
       });
 
       test('Failure should be an Exception', () {
-        final failure = Failure('Error occurred');
+        final failure = Failure('Error occurred', type: ErrorType.unknown);
 
         expect(failure, isA<Exception>());
         expect(failure, isA<Result>());
       });
 
       test('Failure toString should include message', () {
-        final failure = Failure('Custom error');
+        final failure = Failure('Custom error', type: ErrorType.networkError);
 
-        expect(failure.toString(), contains('DataSourceMediator Failure'));
+        expect(failure.toString(), contains('Failure'));
         expect(failure.toString(), contains('Custom error'));
       });
     });
@@ -517,7 +517,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.remote(
-          remoteStrategy: remoteStrategy,
+          remoteDataSource: remoteStrategy,
           saveCallResult: (response) async {
             throw Exception('Save failed');
           },
@@ -539,7 +539,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.remote(
-          remoteStrategy: remoteStrategy,
+          remoteDataSource: remoteStrategy,
           saveCallResult: (response) async {
             throw Exception('Save error');
           },
@@ -562,7 +562,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.remote(
-          remoteStrategy: remoteStrategy,
+          remoteDataSource: remoteStrategy,
           saveCallResult: (response) async {
             saveAttempted = true;
             throw Exception('Save failed');
@@ -597,8 +597,8 @@ void main() {
         );
 
         final mediator = DataSourceMediator<UserModel, UserDto, UserEntity>(
-          localStrategy: localStrategy,
-          remoteStrategy: remoteStrategy,
+          localDataSource: localStrategy,
+          remoteDataSource: remoteStrategy,
           saveCallResult: (response) async {
             executionOrder.add('save');
           },
@@ -623,7 +623,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.local(
-          localStrategy: localStrategy,
+          localDataSource: localStrategy,
         );
 
         // Execute concurrently
@@ -643,7 +643,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.local(
-          localStrategy: localStrategy,
+          localDataSource: localStrategy,
         );
 
         final results = await mediator.execute().toList();
@@ -654,7 +654,7 @@ void main() {
 
       test('preserves response metadata throughout stream', () async {
         final customResponse = Response<UserDto>(
-          metadata: testDto,
+          data: testDto,
           status: HttpStatus.ok,
           message: 'Operation completed successfully',
         );
@@ -665,7 +665,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.remote(
-          remoteStrategy: remoteStrategy,
+          remoteDataSource: remoteStrategy,
         );
 
         final results = await mediator.execute().toList();
@@ -682,7 +682,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.local(
-          localStrategy: localStrategy,
+          localDataSource: localStrategy,
         );
 
         final results = await mediator.execute().toList();
@@ -706,7 +706,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.local(
-          localStrategy: localStrategy,
+          localDataSource: localStrategy,
         );
 
         // Execute multiple times
@@ -725,7 +725,7 @@ void main() {
         );
 
         final mediator = DataSourceMediator.local(
-          localStrategy: localStrategy,
+          localDataSource: localStrategy,
         );
 
         // Execute many times to check for memory leaks

@@ -211,17 +211,17 @@ void main() {
         email: 'john@example.com',
       );
       successResponse = Response<UserDto>(
-        metadata: testDto,
+        data: testDto,
         status: HttpStatus.ok,
         message: 'Success',
       );
       createdResponse = Response<UserDto>(
-        metadata: testDto,
+        data: testDto,
         status: HttpStatus.created,
         message: 'Created',
       );
       errorResponse = Response<UserDto>(
-        metadata: null,
+        data: null,
         status: HttpStatus.badRequest,
         message: 'Bad Request',
       );
@@ -233,9 +233,9 @@ void main() {
         final dataSource = RemoteDataSource<UserModel, UserDto>(
           fetchFromRemote: () async => successResponse,
           mapper: (response) => UserModel(
-            id: response.metadata!.id,
-            name: response.metadata!.name,
-            email: response.metadata!.email,
+            id: response.data!.id,
+            name: response.data!.name,
+            email: response.data!.email,
           ),
         );
 
@@ -253,9 +253,9 @@ void main() {
         final dataSource = RemoteDataSource<UserModel, UserDto>(
           fetchFromRemote: () async => createdResponse,
           mapper: (response) => UserModel(
-            id: response.metadata!.id,
-            name: response.metadata!.name,
-            email: response.metadata!.email,
+            id: response.data!.id,
+            name: response.data!.name,
+            email: response.data!.email,
           ),
         );
 
@@ -427,7 +427,7 @@ void main() {
 
       test('message should return response message', () async {
         final customResponse = Response<UserDto>(
-          metadata: testDto,
+          data: testDto,
           status: HttpStatus.ok,
           message: 'Custom success message',
         );
@@ -459,7 +459,7 @@ void main() {
         final dataSource = RemoteDataSource<String, UserDto>(
           fetchFromRemote: () async => successResponse,
           mapper: (response) =>
-              '${response.metadata?.name}: ${response.metadata?.email}',
+              '${response.data?.name}: ${response.data?.email}',
         );
 
         final result = await dataSource.fetch();
@@ -471,18 +471,18 @@ void main() {
     group('Edge Cases', () {
       test('should handle response with null metadata', () async {
         final nullMetadataResponse = Response<UserDto>(
-          metadata: null,
+          data: null,
           status: HttpStatus.ok,
           message: 'No content',
         );
 
         final dataSource = RemoteDataSource<UserModel?, UserDto>(
           fetchFromRemote: () async => nullMetadataResponse,
-          mapper: (response) => response.metadata != null
+          mapper: (response) => response.data != null
               ? UserModel(
-                  id: response.metadata!.id,
-                  name: response.metadata!.name,
-                  email: response.metadata!.email,
+                  id: response.data!.id,
+                  name: response.data!.name,
+                  email: response.data!.email,
                 )
               : null,
         );

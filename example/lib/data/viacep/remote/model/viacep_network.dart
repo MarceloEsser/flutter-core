@@ -1,3 +1,6 @@
+import 'package:example/data/viacep/local/model/address_entity.dart';
+import 'package:example/data/viacep/repository/model/address.dart';
+
 class AddressNetwork {
   final String? cep;
   final String? logradouro;
@@ -63,5 +66,43 @@ class AddressNetwork {
       'ddd': ddd,
       'siafi': siafi,
     };
+  }
+}
+
+extension AddressNetworkExtension on AddressNetwork {
+  AddressEntity toEntity() {
+    return AddressEntity(
+      cep: cep,
+      logradouro: logradouro,
+      complemento: complemento,
+      unidade: unidade,
+      bairro: bairro,
+      localidade: localidade,
+      uf: uf,
+      estado: estado,
+      regiao: regiao,
+      ibge: ibge,
+      gia: gia,
+      ddd: ddd,
+      siafi: siafi,
+    );
+  }
+
+  Address toModel() {
+    return Address(
+      cep: cep,
+      logradouro: logradouro,
+      complemento: complemento,
+      unidade: unidade,
+      bairro: bairro,
+      localidade: localidade,
+      uf: uf,
+      estado: estado,
+      regiao: regiao,
+      ibge: ibge,
+      gia: gia,
+      ddd: ddd,
+      siafi: siafi,
+    );
   }
 }

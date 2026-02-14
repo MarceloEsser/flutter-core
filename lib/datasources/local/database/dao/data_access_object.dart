@@ -4,7 +4,9 @@ import 'package:sqflite/sqflite.dart';
 abstract class DataAccessObject {
   Future<int> insert<T extends Entity>({required T entity});
 
-  Future<List<int>> insertAll<T extends Entity>({required List<T> entities});
+  Future<List<int>> insertAll<T extends Entity>({
+    required List<T> entities,
+  });
 
   Future<T?> get<T extends Entity>(
     int id, {
@@ -15,9 +17,12 @@ abstract class DataAccessObject {
   Future<List<T>> getAll<T extends Entity>({
     required String table,
     required T Function(Map<String, Object?>) toEntity,
+    Map<String, dynamic>? args,
   });
 
-  Future<bool> containsEntity<T extends Entity>({required T entity});
+  Future<bool> containsEntity<T extends Entity>({
+    required T entity,
+  });
 
   Future<int> delete<T extends Entity>(T? entity);
 

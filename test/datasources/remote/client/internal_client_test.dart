@@ -1,8 +1,9 @@
 import 'dart:io';
 
+import 'package:flutter_core/datasources/remote/client/http_client_exception.dart';
 import 'package:flutter_core/datasources/remote/client/internal_client.dart';
 import 'package:flutter_core/datasources/remote/client/request/request.dart';
-import 'package:flutter_core/resource.dart';
+import 'package:flutter_core/datasources/remote/response/reponse.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
@@ -22,7 +23,7 @@ void main() {
           request: Request.get('/users'),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should include query parameters in GET request', () async {
@@ -35,7 +36,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should include custom headers in GET request', () async {
@@ -48,7 +49,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should handle absolute URLs in GET request', () async {
@@ -58,7 +59,7 @@ void main() {
           request: Request.get('https://api.other.com/data'),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should use mapper to transform response', () async {
@@ -71,7 +72,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource<String>>());
+        expect(response, isA<Response<String>>());
       });
     });
 
@@ -87,7 +88,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should include content-type header in POST request', () async {
@@ -98,7 +99,7 @@ void main() {
           request: Request.post('/users', body: body),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should send POST request with query parameters', () async {
@@ -113,7 +114,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should send POST request with form data', () async {
@@ -128,7 +129,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should send anonymous POST request', () async {
@@ -143,7 +144,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
     });
 
@@ -159,7 +160,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should handle PUT request with custom headers', () async {
@@ -174,7 +175,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
     });
 
@@ -186,7 +187,7 @@ void main() {
           request: Request.delete('/users/1'),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should send DELETE request with query parameters', () async {
@@ -199,7 +200,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
     });
 
@@ -214,7 +215,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource<Map<String, dynamic>>>());
+        expect(response, isA<Response<Map<String, dynamic>>>());
       });
 
       test('should handle mapper returning null', () async {
@@ -227,7 +228,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource<String?>>());
+        expect(response, isA<Response<String?>>());
       });
     });
 
@@ -239,7 +240,7 @@ void main() {
           request: Request.get('/protected'),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should return failure resource on persistent errors', () async {
@@ -249,7 +250,7 @@ void main() {
           request: Request.get('/error'),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
     });
 
@@ -261,7 +262,7 @@ void main() {
           request: Request.post('/data', body: {}),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should not override provided headers', () async {
@@ -275,7 +276,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should handle authorization header when shouldAuthorize is true',
@@ -289,7 +290,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should skip authorization header when shouldAuthorize is false',
@@ -303,7 +304,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should handle isAnonymous flag', () async {
@@ -316,7 +317,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
     });
 
@@ -328,7 +329,7 @@ void main() {
           request: Request.get('/users/123'),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should handle path starting with /', () async {
@@ -338,7 +339,7 @@ void main() {
           request: Request.get('/api/v1/users'),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should use full URL when path contains https://', () async {
@@ -348,7 +349,7 @@ void main() {
           request: Request.get('https://other-api.com/data'),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
     });
 
@@ -360,41 +361,36 @@ void main() {
           request: Request.get('/invalid-json'),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
         // Response could be success or failure depending on actual response
       });
 
-      test('should return failure resource on client exception', () async {
+      test('should throw exception on client exception', () async {
         final client = InternalClient('invalid..domain..com');
 
-        final response = await client.send(
-          request: Request.get('/test'),
+        expect(
+          () => client.send(request: Request.get('/test')),
+          throwsA(isA<HttpClientException>()),
         );
-
-        expect(response, isA<Resource>());
-        expect(response.isFailure, isTrue);
       });
 
-      test('should handle network errors gracefully', () async {
+      test('should throw exception on network errors', () async {
         final client = InternalClient('non-existent-domain-12345.com');
 
-        final response = await client.send(
-          request: Request.get('/test'),
+        expect(
+          () => client.send(request: Request.get('/test')),
+          throwsA(isA<NetworkException>()),
         );
-
-        expect(response, isA<Resource>());
-        expect(response.isFailure, isTrue);
       });
 
-      test('should return failure resource for error responses', () async {
+      test('should throw exception for error responses', () async {
         final client = InternalClient(baseUrl);
 
-        // This would typically fail with a real API
-        final response = await client.send(
-          request: Request.get('/not-found'),
+        // This would typically fail with a real API (404)
+        expect(
+          () => client.send(request: Request.get('/not-found')),
+          throwsA(isA<HttpStatusException>()),
         );
-
-        expect(response, isA<Resource>());
       });
     });
 
@@ -438,7 +434,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
 
       test('should set correct content-type for form data', () async {
@@ -452,7 +448,7 @@ void main() {
           ),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
       });
     });
 
@@ -487,30 +483,28 @@ void main() {
           request: Request.get('/users/1'),
         );
 
-        expect(response, isA<Resource>());
+        expect(response, isA<Response>());
         // raw property should be accessible
       });
 
-      test('should check isSuccess property', () async {
+      test('should have isSuccessful property', () async {
         final client = InternalClient(baseUrl);
 
         final response = await client.send(
           request: Request.get('/users'),
         );
 
-        expect(response, isA<Resource>());
-        expect(response.isSuccess, isA<bool>());
+        expect(response, isA<Response>());
+        expect(response.isSuccessful, isA<bool>());
       });
 
-      test('should check isFailure property', () async {
+      test('should throw exception on error', () async {
         final client = InternalClient('invalid..domain..com');
 
-        final response = await client.send(
-          request: Request.get('/test'),
+        expect(
+          () => client.send(request: Request.get('/test')),
+          throwsA(isA<HttpClientException>()),
         );
-
-        expect(response, isA<Resource>());
-        expect(response.isFailure, isTrue);
       });
     });
   });
