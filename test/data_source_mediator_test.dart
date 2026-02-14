@@ -616,7 +616,7 @@ void main() {
         final localStrategy = LocalDataSource<UserModel, UserEntity>(
           fetchFromLocal: () async {
             fetchCount++;
-            await Future.delayed(Duration(milliseconds: 10));
+            await Future.delayed(const Duration(milliseconds: 10));
             return testEntity;
           },
           mapper: (entity) => testUser,
