@@ -249,12 +249,6 @@ void main() {
 
       test('yields Failure when response throws for non-success status',
           () async {
-        final noMessageResponse = Response<UserDto>(
-          data: testDto,
-          status: 500,
-          message: null,
-        );
-
         // InternalClient throws on 500, so simulate that
         final remoteStrategy = RemoteDataSource<UserModel, UserDto>(
           fetchFromRemote: () async => throw Exception('Internal Server Error'),

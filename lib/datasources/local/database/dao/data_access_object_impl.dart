@@ -17,7 +17,7 @@ class DataAccessObjectImpl implements DataAccessObject {
     try {
       final database = await _database;
       return await _insert(database, entity);
-    } catch (e, stackTrace) {
+    } catch (e) {
       if (e is DaoException) rethrow;
       throw DatabaseOperationException(
         'Failed to insert entity',
@@ -49,7 +49,7 @@ class DataAccessObjectImpl implements DataAccessObject {
       });
 
       return ids;
-    } catch (e, stackTrace) {
+    } catch (e) {
       if (e is DaoException) rethrow;
       throw DatabaseOperationException(
         'Failed to insert entities',

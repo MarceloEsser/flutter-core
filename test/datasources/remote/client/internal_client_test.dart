@@ -23,15 +23,7 @@ void main() {
       mockHttpClient = MockClient();
     });
 
-    http.Response _createSuccessResponse([Map<String, dynamic>? data]) {
-      return http.Response(
-        jsonEncode(data ?? {'success': true}),
-        HttpStatus.ok,
-        headers: {'content-type': 'application/json'},
-      );
-    }
-
-    http.StreamedResponse _createStreamedResponse(int statusCode,
+    http.StreamedResponse createStreamedResponse(int statusCode,
         [String? body]) {
       return http.StreamedResponse(
         Stream.value(utf8.encode(body ?? jsonEncode({'success': true}))),
@@ -43,7 +35,7 @@ void main() {
     group('GET Requests', () {
       test('should send GET request successfully', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -57,7 +49,7 @@ void main() {
 
       test('should include query parameters in GET request', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -78,7 +70,7 @@ void main() {
 
       test('should include custom headers in GET request', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -98,7 +90,7 @@ void main() {
 
       test('should handle absolute URLs in GET request', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -115,7 +107,7 @@ void main() {
 
       test('should use mapper to transform response', () async {
         when(mockHttpClient.send(any)).thenAnswer((_) async =>
-            _createStreamedResponse(
+            createStreamedResponse(
                 HttpStatus.ok, jsonEncode({'name': 'John Doe'})));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
@@ -135,7 +127,7 @@ void main() {
     group('POST Requests', () {
       test('should send POST request with JSON body', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'name': 'John', 'email': 'john@example.com'};
@@ -155,7 +147,7 @@ void main() {
 
       test('should include content-type header in POST request', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'data': 'test'};
@@ -169,7 +161,7 @@ void main() {
 
       test('should send POST request with query parameters', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'data': 'test'};
@@ -187,7 +179,7 @@ void main() {
 
       test('should send POST request with form data', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'username': 'john', 'password': 'secret'};
@@ -205,7 +197,7 @@ void main() {
 
       test('should send anonymous POST request', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'email': 'test@example.com'};
@@ -225,7 +217,7 @@ void main() {
     group('PUT Requests', () {
       test('should send PUT request with body', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'name': 'Updated Name'};
@@ -242,7 +234,7 @@ void main() {
 
       test('should handle PUT request with custom headers', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'data': 'test'};
@@ -262,7 +254,7 @@ void main() {
     group('DELETE Requests', () {
       test('should send DELETE request', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -275,7 +267,7 @@ void main() {
 
       test('should send DELETE request with query parameters', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -293,7 +285,7 @@ void main() {
     group('Response Mapping', () {
       test('should map JSON response to typed object', () async {
         when(mockHttpClient.send(any)).thenAnswer((_) async =>
-            _createStreamedResponse(
+            createStreamedResponse(
                 HttpStatus.ok, jsonEncode({'id': 1, 'name': 'John'})));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
@@ -311,7 +303,7 @@ void main() {
 
       test('should handle mapper returning null', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -330,7 +322,7 @@ void main() {
     group('Retry Logic', () {
       test('should handle retries gracefully', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -344,7 +336,7 @@ void main() {
 
       test('should return failure resource on persistent errors', () async {
         when(mockHttpClient.send(any)).thenAnswer((_) async =>
-            _createStreamedResponse(HttpStatus.internalServerError));
+            createStreamedResponse(HttpStatus.internalServerError));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -358,7 +350,7 @@ void main() {
     group('Header Management', () {
       test('should add default content-type header', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -371,7 +363,7 @@ void main() {
 
       test('should not override provided headers', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -391,7 +383,7 @@ void main() {
       test('should handle authorization header when shouldAuthorize is true',
           () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -408,7 +400,7 @@ void main() {
       test('should skip authorization header when shouldAuthorize is false',
           () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -424,7 +416,7 @@ void main() {
 
       test('should handle isAnonymous flag', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -442,7 +434,7 @@ void main() {
     group('URL Construction', () {
       test('should construct URL with baseUrl and path', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -459,7 +451,7 @@ void main() {
 
       test('should handle path starting with /', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -472,7 +464,7 @@ void main() {
 
       test('should use full URL when path contains https://', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -490,8 +482,8 @@ void main() {
 
     group('Error Handling', () {
       test('should return failure resource on format exception', () async {
-        when(mockHttpClient.send(any)).thenAnswer((_) async =>
-            _createStreamedResponse(HttpStatus.ok, 'invalid json'));
+        when(mockHttpClient.send(any)).thenAnswer(
+            (_) async => createStreamedResponse(HttpStatus.ok, 'invalid json'));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -527,7 +519,7 @@ void main() {
 
       test('should throw exception for error responses', () async {
         when(mockHttpClient.send(any)).thenAnswer(
-            (_) async => _createStreamedResponse(HttpStatus.notFound));
+            (_) async => createStreamedResponse(HttpStatus.notFound));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -568,7 +560,7 @@ void main() {
     group('Form Data Handling', () {
       test('should encode map as form data when isFormData is true', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
         final body = {'key1': 'value1', 'key2': 'value2'};
@@ -586,7 +578,7 @@ void main() {
 
       test('should set correct content-type for form data', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -610,7 +602,7 @@ void main() {
     group('Debug Logging', () {
       test('should log request details in debug mode', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -625,7 +617,7 @@ void main() {
 
       test('should log response details in debug mode', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 
@@ -641,7 +633,7 @@ void main() {
     group('Resource Wrappers', () {
       test('should include raw JSON in Resource', () async {
         when(mockHttpClient.send(any)).thenAnswer((_) async =>
-            _createStreamedResponse(
+            createStreamedResponse(
                 HttpStatus.ok, jsonEncode({'id': 1, 'name': 'Test'})));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
@@ -656,7 +648,7 @@ void main() {
 
       test('should have isSuccessful property', () async {
         when(mockHttpClient.send(any))
-            .thenAnswer((_) async => _createStreamedResponse(HttpStatus.ok));
+            .thenAnswer((_) async => createStreamedResponse(HttpStatus.ok));
 
         final client = InternalClient(baseUrl, client: mockHttpClient);
 

@@ -104,16 +104,12 @@ void main() {
             .toList();
 
         // Assert
-        expect(results, hasLength(2));
+        // When cache is empty and remote exists, only remote data is emitted
+        expect(results, hasLength(1));
 
-        // First emission: null cached data
+        // Emission: network data
         expect(results[0], isA<Data<Address?>>());
-        final cachedResult = results[0] as Data<Address?>;
-        expect(cachedResult.data, isNull);
-
-        // Second emission: network data
-        expect(results[1], isA<Data<Address?>>());
-        final networkResult = results[1] as Data<Address?>;
+        final networkResult = results[0] as Data<Address?>;
         expect(networkResult.data?.logradouro, 'Av Paulista');
         expect(networkResult.data?.cep, zipCode);
       });
@@ -202,10 +198,19 @@ void main() {
             .fetchAddressByZipCode(zipCode)
             .toList();
 
-        // Assert - should still get network data despite cache save failure
-        final networkResult = results.last as Data<Address?>;
+        // Assert - should get network data first, then cache save failure
+        expect(results, hasLength(2));
+
+        // First emission: successful network data
+        expect(results[0], isA<Data<Address?>>());
+        final networkResult = results[0] as Data<Address?>;
         expect(networkResult.data, isNotNull);
         expect(networkResult.data?.logradouro, 'Av Paulista');
+
+        // Second emission: cache save failure
+        expect(results[1], isA<Failure<Address?>>());
+        final failure = results[1] as Failure<Address?>;
+        expect(failure.type, ErrorType.databaseError);
       });
     });
 
@@ -231,11 +236,12 @@ void main() {
             .toList();
 
         // Assert
-        expect(results, hasLength(2));
+        // When cache is empty and remote throws error, only error is emitted
+        expect(results, hasLength(1));
 
-        // Second emission should be failure
-        expect(results[1], isA<Failure<Address?>>());
-        final failure = results[1] as Failure<Address?>;
+        // Emission should be failure
+        expect(results[0], isA<Failure<Address?>>());
+        final failure = results[0] as Failure<Address?>;
         expect(failure.type, ErrorType.notFound);
         expect(failure.statusCode, HttpStatus.notFound);
         expect(failure.message, contains('CEP not found'));
