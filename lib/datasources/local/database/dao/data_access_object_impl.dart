@@ -8,51 +8,54 @@ import '../provider/database_provider.dart';
 class DataAccessObjectImpl implements DataAccessObject {
   final DatabaseProvider _provider;
 
-  Future<Database> get _database async => await _provider.database;
+  Future<Database> get _database async => _provider.database;
 
   DataAccessObjectImpl(this._provider);
 
-  @visibleForTesting
-  @override
-  Future<bool> tableExists(Database database, String tableName) async {
-    final database = await _database;
-    List<Map<String, dynamic>> tables = await database.query('sqlite_master');
-
-    return tables.any((table) => table['name'] == tableName);
-  }
-
   @override
   Future<int> insert<T extends Entity>({required T entity}) async {
-    final database = await _database;
-
-    final id = await _insert(database, entity);
-
-    return id;
+    try {
+      final database = await _database;
+      return await _insert(database, entity);
+    } catch (e) {
+      if (e is DaoException) rethrow;
+      throw DatabaseOperationException(
+        'Failed to insert entity',
+        cause: e,
+      );
+    }
   }
 
   @override
-  Future<List<int>> insertAll<T extends Entity>(
-      {required List<T> entities}) async {
-    final database = await _database;
-    List<int> ids = [];
-    for (var entity in entities) {
-      final result = await _insert(database, entity);
-      ids.add(result);
-    }
-    return ids;
-  }
+  Future<List<int>> insertAll<T extends Entity>({
+    required List<T> entities,
+  }) async {
+    if (entities.isEmpty) return [];
 
-  Future<int> _insert(Database database, Entity entity) async {
-    bool mTableExists = await tableExists(database, entity.table);
-    if (!mTableExists) {
-      await database.execute(entity.createTable());
-    }
+    try {
+      final database = await _database;
+      final List<int> ids = [];
 
-    return await database.insert(
-      entity.table,
-      entity.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+      await database.transaction((txn) async {
+        for (final entity in entities) {
+          await _ensureTableExists(txn, entity);
+          final id = await txn.insert(
+            entity.table,
+            entity.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          ids.add(id);
+        }
+      });
+
+      return ids;
+    } catch (e) {
+      if (e is DaoException) rethrow;
+      throw DatabaseOperationException(
+        'Failed to insert entities',
+        cause: e,
+      );
+    }
   }
 
   @override
@@ -62,37 +65,39 @@ class DataAccessObjectImpl implements DataAccessObject {
     required String table,
   }) async {
     final database = await _database;
+    await _validateTableExists(database, table);
 
-    if (!(await tableExists(database, table))) {
-      return null;
-    }
-
-    final result = await database.rawQuery(
-      'SELECT * FROM $table WHERE id = ?',
-      [id],
+    final result = await database.query(
+      table,
+      where: 'id = ?',
+      whereArgs: [id],
     );
 
-    if (result.isEmpty) return null;
-    return toEntity.call(result.first);
+    return result.isEmpty ? null : toEntity(result.first);
   }
 
   @override
-  Future<List<T>?> getAll<T extends Entity>({
+  Future<List<T>> getAll<T extends Entity>({
     required String table,
     required T Function(Map<String, Object?>) toEntity,
+    Map<String, dynamic>? args,
   }) async {
-    List<T>? entities;
     final database = await _database;
+    await _validateTableExists(database, table);
 
-    bool mTableExists = await tableExists(database, table);
-    if (!mTableExists) {
-      return null;
+    final List<Map<String, Object?>> result;
+    if (args != null && args.isNotEmpty) {
+      final whereClause = _buildWhereClause(args);
+      result = await database.query(
+        table,
+        where: whereClause.condition,
+        whereArgs: whereClause.arguments,
+      );
+    } else {
+      result = await database.query(table);
     }
 
-    final result = await database.query(table);
-    entities = result.map(toEntity).toList();
-
-    return entities;
+    return result.map(toEntity).toList();
   }
 
   @override
@@ -101,19 +106,42 @@ class DataAccessObjectImpl implements DataAccessObject {
   }) async {
     final database = await _database;
 
-    bool mTableExists = await tableExists(database, entity.table);
-    if (!mTableExists) return false;
+    final tableExistsResult = await tableExists(database, entity.table);
+    if (!tableExistsResult) {
+      return false;
+    }
 
-    final entityMap = entity.toMap();
-    String whereCondition = entityMap.keys.map((e) => "$e = ?").join(' AND ');
-
+    final whereClause = _buildWhereClause(entity.toMap());
     final result = await database.query(
       entity.table,
-      where: whereCondition,
-      whereArgs: entityMap.values.toList(),
+      where: whereClause.condition,
+      whereArgs: whereClause.arguments,
     );
 
     return result.isNotEmpty;
+  }
+
+  @override
+  Future<int> delete<T extends Entity>(T? entity) async {
+    if (entity == null) {
+      throw DatabaseOperationException('Cannot operate with null entity');
+    }
+
+    final database = await _database;
+    return _deleteById(database, entity.table, entity.id);
+  }
+
+  @override
+  Future<int> deleteWithId({
+    required String table,
+    required int? id,
+  }) async {
+    if (id == null) {
+      throw DatabaseOperationException('Cannot operate with null id');
+    }
+
+    final database = await _database;
+    return _deleteById(database, table, id);
   }
 
   @override
@@ -121,37 +149,113 @@ class DataAccessObjectImpl implements DataAccessObject {
     required String table,
     required Map<String, dynamic> args,
   }) async {
-    final database = await _database;
-    String whereCondition = args.keys.map((e) => "$e = ?").join(' AND ');
-    List<dynamic> whereValues = args.values.map((e) => e).toList();
+    if (args.isEmpty) {
+      throw DatabaseOperationException(
+        'Cannot delete with empty arguments - this would delete all rows',
+      );
+    }
 
-    return await database.rawDelete(
-      'DELETE FROM $table where $whereCondition',
-      whereValues,
+    final database = await _database;
+    await _validateTableExists(database, table);
+
+    final whereClause = _buildWhereClause(args);
+    return await database.delete(
+      table,
+      where: whereClause.condition,
+      whereArgs: whereClause.arguments,
     );
   }
 
+  @visibleForTesting
   @override
-  Future<int> delete<T extends Entity>(T? entity) async {
-    final database = await _database;
-    final result = await _delete(database, entity?.table, entity?.id);
-    return result;
+  Future<bool> tableExists(
+    DatabaseExecutor database,
+    String tableName,
+  ) async {
+    final tables = await database.query('sqlite_master');
+    return tables.any((table) => table['name'] == tableName);
   }
 
   @override
-  Future<int> deleteWithId({required String table, required int? id}) async {
-    final database = await _database;
-    final result = await _delete(database, table, id);
-    return result;
+  Future<void> close() async {
+    final db = await _database;
+    await db.close();
   }
 
-  Future<int> _delete(Database database, String? table, int? id) async {
-    return await database.rawDelete(
-      'DELETE FROM $table WHERE id = ?',
-      [id],
+  Future<int> _insert(DatabaseExecutor database, Entity entity) async {
+    await _ensureTableExists(database, entity);
+
+    return await database.insert(
+      entity.table,
+      entity.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 
-  @override
-  Future<void> close() async => (await _database).close();
+  Future<int> _deleteById(
+    DatabaseExecutor database,
+    String table,
+    int? id,
+  ) async {
+    _validateNotNull(id, 'id');
+    await _validateTableExists(database, table);
+
+    return await database.delete(
+      table,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> _ensureTableExists(
+    DatabaseExecutor database,
+    Entity entity,
+  ) async {
+    final exists = await tableExists(database, entity.table);
+    if (!exists) {
+      await database.execute(entity.createTable());
+    }
+  }
+
+  void _validateNotNull(Object? value, String paramName) {
+    if (value == null) {
+      throw DatabaseOperationException('Cannot operate with null $paramName');
+    }
+  }
+
+  Future<void> _validateTableExists(
+    DatabaseExecutor database,
+    String table,
+  ) async {
+    final exists = await tableExists(database, table);
+    if (!exists) {
+      throw TableNotFoundException(table);
+    }
+  }
+
+  _WhereClause _buildWhereClause(
+    Map<String, dynamic> conditions, {
+    WhereOperator operator = WhereOperator.and,
+  }) {
+    final separator = operator == WhereOperator.and ? ' AND ' : ' OR ';
+    final condition = conditions.keys.map((key) => '$key = ?').join(separator);
+    final arguments = conditions.values.toList();
+
+    return _WhereClause(condition: condition, arguments: arguments);
+  }
+}
+
+class _WhereClause {
+  final String condition;
+  final List<dynamic> arguments;
+
+  const _WhereClause({
+    required this.condition,
+    required this.arguments,
+  });
+}
+
+enum WhereOperator {
+  and,
+  or,
 }
